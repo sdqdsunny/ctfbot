@@ -6,7 +6,7 @@ authors = ["ASAS Team"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-mcp = "^0.1.0"
+mcp = "^1.26.0"
 fastapi = "^0.100.0"
 uvicorn = "^0.20.0"
 python-nmap = "^0.7.1"
