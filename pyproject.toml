@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "asas-core-mcp"
+version = "0.1.0"
+description = "Core MCP Server for CTF-ASAS"
+authors = ["ASAS Team"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+mcp = "^0.1.0"
+fastapi = "^0.100.0"
+uvicorn = "^0.20.0"
+python-nmap = "^0.7.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+black = "^23.0.0"
+isort = "^5.0.0"
+mypy = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
