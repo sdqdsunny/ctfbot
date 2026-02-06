@@ -18,3 +18,21 @@ def test_mock_llm_unknown():
     messages = [{"role": "user", "content": "你好"}]
     response = llm.chat(messages)
     assert "unknown" in response
+
+from unittest.mock import MagicMock, patch
+from asas_agent.llm.claude import ClaudeLLM
+
+def test_claude_llm_call():
+    with patch("anthropic.Anthropic") as MockAnthropic:
+        # User auth check
+        mock_client = MockAnthropic.return_value
+        mock_message = MagicMock()
+        mock_message.content = [MagicMock(text="Response from Claude")]
+        mock_client.messages.create.return_value = mock_message
+        
+        llm = ClaudeLLM(api_key="fake-key")
+        messages = [{"role": "user", "content": "Hello"}]
+        response = llm.chat(messages)
+        
+        assert response == "Response from Claude"
+        mock_client.messages.create.assert_called_once()
