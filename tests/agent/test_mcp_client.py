@@ -14,16 +14,10 @@ async def test_call_tool():
         mock_session.call_tool.return_value = mock_result
         
         # Setup context managers
-        # stdio_client returns a context manager that yields (read, write)
-        mock_cm = AsyncMock()
-        mock_cm.__aenter__.return_value = (AsyncMock(), AsyncMock())
-        mock_stdio.return_value = mock_cm
+        mock_stdio.return_value.__aenter__.return_value = (AsyncMock(), AsyncMock())
         
         with patch("asas_agent.mcp_client.client.ClientSession") as MockSession:
-            # ClientSession context manager yields session
-            mock_session_cm = AsyncMock()
-            mock_session_cm.__aenter__.return_value = mock_session
-            MockSession.return_value = mock_session_cm
+            MockSession.return_value.__aenter__.return_value = mock_session
             
             client = MCPToolClient()
             result = await client.call_tool("test_tool", {"arg": "val"})
