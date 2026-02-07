@@ -3,6 +3,10 @@ name = "asas-core-mcp"
 version = "0.1.0"
 description = "Core MCP Server for CTF-ASAS"
 authors = ["ASAS Team"]
+packages = [
+    { include = "asas_mcp", from = "src" },
+    { include = "asas_agent", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
