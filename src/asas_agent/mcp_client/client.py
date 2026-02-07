@@ -9,6 +9,11 @@ class MCPToolClient:
     def __init__(self):
         # By default, connect to the local asas_mcp module
         # We need to run it as a python module
+        # Assuming we are running from project root or installed package
+        # We need to find the root of the project to add to PYTHONPATH for the subprocess
+        # A robust way is to find where asas_mcp package is.
+        # But for this MVP, we follow the plan's simple path deduction or improve it.
+        # The plan suggests:
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
         
         self.server_params = StdioServerParameters(
