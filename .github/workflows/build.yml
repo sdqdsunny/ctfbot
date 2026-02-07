@@ -1,0 +1,64 @@
+name: Build Multi-Platform Executables
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: # 允许手动从 Actions 页面点击运行
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: ctfbot-windows.exe
+          - os: macos-latest
+            artifact_name: ctfbot-macos
+          - os: ubuntu-latest
+            artifact_name: ctfbot-linux
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry pyinstaller
+
+      - name: Install Dependencies
+        run: |
+          poetry install
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          # 设置 PYTHONPATH 以确保 PyInstaller 能找到项目模块
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+          poetry run pyinstaller --onefile --name ctfbot --paths src src/asas_agent/__main__.py --noconfirm
+
+      - name: Rename Artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          if (Test-Path dist/ctfbot.exe) { Move-Item dist/ctfbot.exe dist/${{ matrix.artifact_name }} }
+        shell: powershell
+
+      - name: Rename Artifact (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [ -f dist/ctfbot ]; then mv dist/ctfbot dist/${{ matrix.artifact_name }}; fi
+        shell: bash
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}
