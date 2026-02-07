@@ -5,7 +5,8 @@ from ..llm.base import LLMProvider
 from ..mcp_client.client import MCPToolClient
 
 def create_agent_graph(llm: LLMProvider):
-    # For MVP we instantiate a new client each time
+    # Note: creating a new MCPToolClient here means we create a new stdio connection per graph usage.
+    # In a long running service we might want to pass this in, but for CLI MVP this is fine.
     mcp_client = MCPToolClient()
     nodes = AgentNodes(llm, mcp_client)
     

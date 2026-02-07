@@ -33,25 +33,17 @@ class AgentNodes:
                 "planned_tool": "recon_scan", 
                 "tool_args": {"target": target, "ports": "80"}
             }
-        
-        # Fallback for unknown intent
-        if not intent or intent == "unknown":
-             return {"error": "Unknown intent"}
-
-        return {"error": f"No plan for intent: {intent}"}
+            
+        return {"error": "Unknown intent"}
 
     async def execute_tool(self, state: AgentState) -> AgentState:
         """Execute the planned tool."""
         if state.get("error"):
-            # Skip execution if error
-            return {"tool_result": None}
+            return state
             
         tool = state["planned_tool"]
         args = state["tool_args"]
         
-        if not tool:
-             return {"error": "No tool planned"}
-
         try:
             result = await self.mcp_client.call_tool(tool, args)
             return {"tool_result": result}
@@ -63,7 +55,4 @@ class AgentNodes:
         if state.get("error"):
             return {"final_answer": f"Error: {state['error']}"}
         
-        if state.get("tool_result") is None:
-             return {"final_answer": "No result produced."}
-
         return {"final_answer": str(state["tool_result"]).strip()}
