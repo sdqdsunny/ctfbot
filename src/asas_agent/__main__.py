@@ -21,9 +21,18 @@ def main(input_text, llm, api_key):
     
     # Select LLM
     if llm == 'claude':
-        if not api_key:
-            click.echo("Error: API Key required for Claude mode", err=True)
+        # Check for local LLM configuration
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        
+        if not api_key and not base_url:
+            click.echo("Error: API Key required for Claude mode (unless ANTHROPIC_BASE_URL is set)", err=True)
             return
+
+        if base_url:
+            print(f"🌐 模式: 本地离线 (Local) -> {base_url}")
+        else:
+            print(f"☁️  模式: 在线云端 (Online) -> Anthropic API")
+
         llm_provider = ClaudeLLM(api_key=api_key)
     else:
         llm_provider = MockLLM()
