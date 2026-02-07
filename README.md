@@ -1,80 +1,98 @@
-# Digital CTFer - ASAS Core MCP Server
+# CTF-ASAS (Capture The Flag - Automated Solving Agent System)
 
-CTF 自动解题智能体系统的核心 MCP 服务器，基于 Model Context Protocol (MCP) 构建。
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.10+-yellow.svg)](https://www.python.org/)
+[![MCP](https://img.shields.io/badge/protocol-MCP-green.svg)](https://modelcontextprotocol.io/)
 
-## 🛠️ 当前能力 (Capabilities)
+CTF-ASAS 是一款基于大语言模型（LLM）多智能体协作的自动化 CTF（Capture The Flag）解题系统。它利用 **Model Context Protocol (MCP)** 协议，将复杂解题意图与底层专业工具解耦，旨在实现从“题目理解”到“Flag 获取”的全自动化闭环。
 
-本项目目前实现了以下 CTF 辅助工具：
+## 🌟 核心特性
 
-| 类别 | 工具名称 | 描述 |
-|------|----------|------|
-| **Recon** | `recon_scan` | 基础网络端口扫描 |
-| **Crypto** | `crypto_decode` | 多格式解码 (Base64, Hex, URL) |
-| **Misc** | `misc_identify_file` | 基于文件头(Magic Bytes)识别文件类型 |
-| **Reverse**| `reverse_extract_strings`| 从二进制数据中提取可打印字符串 |
+- **Agent-Native 架构**: 基于 LangGraph 构建任务编排层，模拟安全专家的逻辑闭环（理解 -> 规划 -> 执行 -> 总结）。
+- **工具链解耦 (MCP)**: 所有底层能力（扫描、编码、逆向、取证）均作为标准 MCP Tool 调用。
+- **混合题型支持**: 已实现对 Crypto, Recon, Reverse, Misc 基础题型的覆盖。
+- **本地记忆层 (RAG)**: 集成 ChromaDB 知识库，支持解题技巧、WP 片段的存取与检索。
+- **隔离沙箱**:（规划中）所有 Payload 执行均在 gVisor 隔离容器中完成。
 
-## 🚀 快速集成指南 (Claude Desktop)
+## 🏗️ 系统架构
 
-要让 Claude Desktop 使用此工具集，请按照以下步骤操作：
+```text
+┌─────────────────────────────────────┐
+│   用户接口 (CLI / Web Dashboard)     │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   asas-agent (决策大脑)              │
+│   - LangGraph 状态机                 │
+│   - LLM 提供者 (Claude/Mock)         │
+│   - 任务规划与反思                   │
+└──────────────┬──────────────────────┘
+               │ Model Context Protocol (Stdio)
+┌──────────────▼──────────────────────┐
+│   asas-core-mcp (能力引擎)            │
+│  - 🛠️ Recon: 端口扫描、指纹探测       │
+│  - 🔐 Crypto: 万能解码、RSA/AES 求解  │
+│  - 📂 Misc/Reverse: 文件识别、字符串提取│
+│  - 🧠 Memory: ChromaDB 知识存取       │
+└─────────────────────────────────────┘
+```
 
-### 1. 准备环境
+## 🚀 快速开始
 
-确保你已经安装了依赖并使其可执行：
+### 1. 一键安装 (推荐)
+
+如果您在 Linux 或 macOS 环境下，可以使用以下脚本快速完成环境配置、依赖安装及工具构建：
 
 ```bash
-chmod +x scripts/start_mcp_server.sh
+# 执行本地安装脚本
+bash scripts/install.sh
 ```
 
-### 2. 编辑配置文件
+> **注**: 生产环境下可将其托管至服务器，实现 `curl -fsSL ... | bash` 的体验。
 
-打开 Claude Desktop 的配置文件：
+### 2. 手动安装 (Poetry)
 
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+确保已安装 [Python 3.10+](https://www.python.org/) 和 [Poetry](https://python-poetry.org/)。
 
-如果文件不存在，请创建它。
+### 2. 配置环境变量
 
-### 3. 添加服务器配置
+如果需要使用 Claude 3.5 真实 LLM，请在目录下创建 `.env` 文件：
 
-将以下内容添加到配置文件中（请确保 `command` 路径是绝对路径）：
-
-```json
-{
-  "mcpServers": {
-    "digital-ctfer": {
-      "command": "/Users/guoshuguang/my-project/antigravity/digital-ctfer/scripts/start_mcp_server.sh",
-      "args": []
-    }
-  }
-}
+```env
+ANTHROPIC_API_KEY=your_sk_key_here
 ```
 
-> **注意**: 如果你移动了项目文件夹，请务必更新上面的路径。
+### 3. 运行程序
 
-### 4. 重启 Claude
-
-完全退出并重新打开 Claude Desktop。你应该能看到一个 "🔌" 图标或在对话中看到已连接的工具。
-
-## 🐳 Docker 部署
-
-如果你偏好容器化运行（HTTP 模式）：
+#### 模式 A：Mock 模式（无需 API Key，验证流程用）
 
 ```bash
-# 构建镜像
-docker build -t asas-core-mcp:latest .
-
-# 启动服务
-docker-compose up -d
+python -m src.asas_agent "解码这段 Base64: SGVsbG8gQVNBUw=="
 ```
 
-服务将在 `http://localhost:8000` 启动。
-
-## 📦 开发与测试
+#### 模式 B：Claude 模式（需配置 API Key）
 
 ```bash
-# 安装依赖
-pip install poetry
-poetry install
-
-# 运行测试
-poetry run pytest
+python -m src.asas_agent --llm claude "请扫描目标 IP 192.168.1.1 并识别开放服务"
 ```
+
+## 🛠️ 可用工具清单 (MCP Tools)
+
+| 工具名称 | 功能描述 | 题型 |
+| --- | --- | --- |
+| `recon_scan` | 多端口网络扫描与服务探测 | Recon |
+| `crypto_decode` | Base64/Hex/URL 等格式自动识别与解码 | Crypto |
+| `misc_identify_file` | 文件头识别与 Meta 数据分析 | Misc |
+| `reverse_extract_strings` | 二进制文件敏感字符串提取 | Reverse |
+| `memory_add/query` | RAG 记忆层：存储解题事实或检索知识点 | Core |
+
+## 📅 路线图 (Roadmap)
+
+- [x] **v1.0 (MVP)**: MCP 协议打通，基础 Agent 解题闭环，RAG 集成。
+- [ ] **v1.5**: 对接 BUUCTF/CTFd 平台 API，实现全自动取题与 Flag 提交。
+- [ ] **v2.0**: 集成 Ghidra/SageMath Server，支持深度逆向与复杂密码学计算。
+- [ ] **v3.0**: 引入递归任务树 (Task Tree)，支持复杂多步 Web 渗透任务。
+
+## 📄 开源协议
+
+MIT License

@@ -1,11 +1,16 @@
 import asyncio
 import click
 import os
+import sys
 from dotenv import load_dotenv
 
-from .graph.workflow import create_agent_graph
-from .llm.mock import MockLLM
-from .llm.claude import ClaudeLLM
+# Add src to path if needed for local execution context within PyInstaller
+# But cleaner to use package-relative if running as module
+# When compiled with PyInstaller, we might need to fix imports
+
+from asas_agent.graph.workflow import create_agent_graph
+from asas_agent.llm.mock import MockLLM
+from asas_agent.llm.claude import ClaudeLLM
 
 load_dotenv()
 
