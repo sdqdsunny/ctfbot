@@ -9,7 +9,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.15"
 mcp = "^1.26.0"
 fastapi = "^0.100.0"
 uvicorn = ">=0.31.1"
@@ -19,6 +19,8 @@ anthropic = "^0.40.0"
 click = "^8.1.0"
 python-dotenv = "^1.0.0"
 chromadb = "^1.4.1"
+requests = "^2.32.5"
+beautifulsoup4 = "^4.14.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
@@ -26,6 +28,7 @@ pytest-asyncio = "^0.21.0"
 black = "^23.0.0"
 isort = "^5.0.0"
 mypy = "^1.0.0"
+pyinstaller = "^6.18.0"
 
 [build-system]
 requires = ["poetry-core"]
