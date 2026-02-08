@@ -15,7 +15,11 @@ class AgentNodes:
         print(f"--- [Understand] Input: {state.get('user_input')[:100]}... ---")
         
         # IF we have platform URL but no challenge ID, the task is fetching
-        if state.get("platform_url") and not state.get("challenge_id"):
+        # BUT only if we haven't tried it yet to avoid infinite loops
+        history = state.get("task_history", [])
+        has_tried_fetch = any(h['tool'] == "platform_get_challenge" for h in history)
+        
+        if state.get("platform_url") and not state.get("challenge_id") and not has_tried_fetch:
             print("--- [Understand] Auto-intent: platform_fetch ---")
             return {"task_understanding": "platform_fetch"}
             

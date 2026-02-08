@@ -10,8 +10,15 @@ class MockLLM(LLMProvider):
             
         user_msg = messages[-1]["content"].lower()
 
-        if "platform_fetch" in user_msg or (user_msg.startswith("http") and "scan" not in user_msg and "扫描" not in user_msg):
+        if "platform_fetch" in user_msg:
             return "platform_fetch"
+            
+        # If input is just a URL and NOT in a history context, fetch it.
+        # If it's in history context, it means the fetch probably failed or was done, 
+        # so don't return platform_fetch again.
+        if user_msg.startswith("http") and "已尝试的历史操作" not in user_msg:
+             if "scan" not in user_msg and "扫描" not in user_msg:
+                return "platform_fetch"
             
         if "sql 注入已确认" in user_msg.lower():
             return "final_answer" 
