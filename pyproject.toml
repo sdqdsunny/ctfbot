@@ -21,6 +21,7 @@ python-dotenv = "^1.0.0"
 chromadb = "^1.4.1"
 requests = "^2.32.5"
 beautifulsoup4 = "^4.14.3"
+onnxruntime = "^1.24.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
