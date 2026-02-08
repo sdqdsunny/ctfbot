@@ -10,7 +10,7 @@ class MockLLM(LLMProvider):
             
         user_msg = messages[-1]["content"].lower()
 
-        if "platform_fetch" in user_msg:
+        if "platform_fetch" in user_msg or (user_msg.startswith("http") and "scan" not in user_msg and "扫描" not in user_msg):
             return "platform_fetch"
             
         if "sql 注入已确认" in user_msg.lower():
