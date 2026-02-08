@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from .tools import recon, crypto, misc, reverse
+from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox
 import base64
 
 # 创建 MCP Server 实例
@@ -45,6 +45,25 @@ def misc_identify_file(data_base64: str) -> dict:
     return misc.identify_file_type(data)
 
 @mcp_server.tool()
+def misc_run_python(code: str) -> str:
+    """[安全沙箱] 在隔离容器内运行 Python 代码
+    
+    Args:
+        code: 完整的 Python 代码
+    """
+    return sandbox.run_python(code)
+
+@mcp_server.tool()
+def sandbox_execute(code: str, language: str = "python") -> str:
+    """[安全沙箱] 在隔离容器内运行多种语言代码 (python/bash)
+    
+    Args:
+        code: 脚本代码
+        language: 语言类型 (python/bash)
+    """
+    return sandbox.run_in_sandbox(code, language)
+
+@mcp_server.tool()
 def reverse_extract_strings(data_base64: str, min_length: int = 4) -> list:
     """从二进制数据提取字符串
     
@@ -57,6 +76,126 @@ def reverse_extract_strings(data_base64: str, min_length: int = 4) -> list:
     """
     data = base64.b64decode(data_base64)
     return reverse.extract_strings(data, min_length)
+
+@mcp_server.tool()
+def reverse_ghidra_decompile(data_base64: str) -> dict:
+    """[深度分析] 使用 Ghidra 执行自动化反编译
+    
+    Args:
+        data_base64: Base64 编码的二进制文件数据
+        
+    Returns:
+        包含所有函数及其对应 C 伪代码的字典
+    """
+    return reverse_ghidra.analyze_binary(data_base64)
+
+# --- Web Pentest Tools ---
+
+@mcp_server.tool()
+def web_dir_scan(url: str, custom_words: list = None) -> dict:
+    """[Web] 扫描目标 URL 的公共目录与文件
+    
+    Args:
+        url: 目标基础 URL (例如 http://example.com)
+        custom_words: 自定义字典 (可选)
+    """
+    return web.dir_scan(url, custom_words)
+
+@mcp_server.tool()
+def web_sql_check(url: str, param: str) -> dict:
+    """[Web] 对指定参数执行基础 SQL 注入检测
+    
+    Args:
+        url: 目标 URL
+        param: 要测试的参数名
+    """
+    return web.sql_check(url, param)
+
+@mcp_server.tool()
+def web_extract_links(url: str) -> dict:
+    """[Web] 提取页面内的所有链接与表单结构
+    
+    Args:
+        url: 要爬取的 URL
+    """
+    return web.extract_links(url)
+
+# --- Platform Integration ---
+
+@mcp_server.tool()
+def platform_get_challenge(url: str, token: str = None) -> dict:
+    """从 CTF 平台获取题目详情
+    
+    Args:
+        url: 题目详情页 URL 或 API URL
+        token: 平台 API Token (可选)
+        
+    Returns:
+        题目详情字典 (包含描述、分类等)
+    """
+    return platform.fetch_challenge(url, token)
+
+@mcp_server.tool()
+def platform_submit_flag(base_url: str, challenge_id: str, flag: str, token: str = None) -> dict:
+    """向 CTF 平台提交 Flag
+    
+    Args:
+        base_url: 平台基础 URL (例如 https://ctf.example.com)
+        challenge_id: 题目 ID
+        flag: 解出的 Flag 字符串
+        token: 平台 API Token (可选)
+        
+    Returns:
+        提交结果及平台反馈
+    """
+    return platform.submit_flag(base_url, challenge_id, flag, token)
+
+# --- Kali VM Integration ---
+
+@mcp_server.tool()
+def kali_sqlmap(url: str, args: str = "--batch --banner") -> str:
+    """[Kali] 使用 sqlmap 执行自动化 SQL 注入检测与利用"""
+    return kali.sqlmap(url, args)
+
+@mcp_server.tool()
+def kali_dirsearch(url: str, args: str = "-e php,html,js") -> str:
+    """[Kali] 使用 dirsearch 执行 Web 路径爆破"""
+    return kali.dirsearch(url, args)
+
+@mcp_server.tool()
+def kali_nmap(target: str, args: str = "-F") -> str:
+    """[Kali] 使用 nmap 执行专业级端口扫描与指纹识别"""
+    return kali.nmap(target, args)
+
+@mcp_server.tool()
+def kali_steghide(file_path: str, passphrase: str = "") -> str:
+    """[Kali] 使用 steghide 提取隐藏信息"""
+    return kali.steghide(file_path, passphrase)
+
+@mcp_server.tool()
+def kali_zsteg(file_path: str) -> str:
+    """[Kali] 使用 zsteg 进行图片 LSB 隐写检测"""
+    return kali.zsteg(file_path)
+
+@mcp_server.tool()
+def kali_binwalk(file_path: str, extract: bool = True) -> str:
+    """[Kali] 使用 binwalk 分析并提取文件"""
+    return kali.binwalk(file_path, extract)
+
+@mcp_server.tool()
+def kali_foremost(file_path: str) -> str:
+    """[Kali] 使用 foremost 恢复文件"""
+    return kali.foremost(file_path)
+
+@mcp_server.tool()
+def kali_tshark(file_path: str, filter: str = "") -> str:
+    """[Kali] 使用 tshark 分析流量包 (pcap)"""
+    return kali.tshark(file_path, filter)
+
+@mcp_server.tool()
+def kali_exec(cmd_str: str) -> str:
+    """[Kali] 在 Kali 虚拟机内执行任意 shell 命令"""
+    return kali.get_executor().execute(cmd_str)
 
 # --- Memory Layer Integration ---
 from .memory.db import ChromaManager
@@ -129,7 +268,24 @@ def create_app():
                 "recon_scan",
                 "crypto_decode",
                 "misc_identify_file",
-                "reverse_extract_strings"
+                "misc_run_python",
+                "sandbox_execute",
+                "reverse_extract_strings",
+                "reverse_ghidra_decompile",
+                "web_dir_scan",
+                "web_sql_check",
+                "web_extract_links",
+                "kali_sqlmap",
+                "kali_dirsearch",
+                "kali_nmap",
+                "kali_steghide",
+                "kali_zsteg",
+                "kali_tshark",
+                "kali_binwalk",
+                "kali_foremost",
+                "kali_exec",
+                "platform_get_challenge",
+                "platform_submit_flag"
             ]
         }
     

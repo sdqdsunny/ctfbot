@@ -8,11 +8,12 @@ CTF-ASAS 是一款基于大语言模型（LLM）多智能体协作的自动化 C
 
 ## 🌟 核心特性
 
-- **Agent-Native 架构**: 基于 LangGraph 构建任务编排层，模拟安全专家的逻辑闭环（理解 -> 规划 -> 执行 -> 总结）。
+- **Agent-Native 架构**: 基于 LangGraph 构建任务编排层，模拟安全专家的逻辑闭环（理解 -> 规划 -> 执行 -> 反馈）。
 - **工具链解耦 (MCP)**: 所有底层能力（扫描、编码、逆向、取证）均作为标准 MCP Tool 调用。
-- **混合题型支持**: 已实现对 Crypto, Recon, Reverse, Misc 基础题型的覆盖。
-- **本地记忆层 (RAG)**: 集成 ChromaDB 知识库，支持解题技巧、WP 片段的存取与检索。
-- **隔离沙箱**:（规划中）所有 Payload 执行均在 gVisor 隔离容器中完成。
+- **Kali Linux 虚拟机直连**: 通过 `vmrun` 驱动桥接 Kali VM，实现“上帝模式”指令注入，支持专业级安全工具链。
+- **隔离沙箱**: 支持 Docker 容器运行 Python/Bash 脚本，具备资源限制与网络隔离。
+- **深度逆向**: 集成 Ghidra Docker 化服务，支持全量 C 伪代码提取与逻辑分析。
+- **本地记忆层 (RAG)**: 集成 ChromaDB 知识库，支持解题经验沉淀与 WP 检索。
 
 ## 🏗️ 系统架构
 
@@ -31,8 +32,9 @@ CTF-ASAS 是一款基于大语言模型（LLM）多智能体协作的自动化 C
 ┌──────────────▼──────────────────────┐
 │   asas-core-mcp (能力引擎)            │
 │  - 🛠️ Recon: 端口扫描、指纹探测       │
-│  - 🔐 Crypto: 万能解码、RSA/AES 求解  │
-│  - 📂 Misc/Reverse: 文件识别、字符串提取│
+│  - 🔐 Crypto: 万能解码、RSA 求解      │
+│  - 📂 Misc/Reverse: 文件识别、Ghidra  │
+│  - 🐉 Kali: sqlmap, nmap, steghide   │
 │  - 🧠 Memory: ChromaDB 知识存取       │
 └─────────────────────────────────────┘
 ```
@@ -76,22 +78,23 @@ python -m src.asas_agent "解码这段 Base64: SGVsbG8gQVNBUw=="
 python -m src.asas_agent --llm claude "请扫描目标 IP 192.168.1.1 并识别开放服务"
 ```
 
-## 🛠️ 可用工具清单 (MCP Tools)
-
-| 工具名称 | 功能描述 | 题型 |
+| 工具名称 | 功能描述 | 来源 |
 | --- | --- | --- |
-| `recon_scan` | 多端口网络扫描与服务探测 | Recon |
-| `crypto_decode` | Base64/Hex/URL 等格式自动识别与解码 | Crypto |
-| `misc_identify_file` | 文件头识别与 Meta 数据分析 | Misc |
-| `reverse_extract_strings` | 二进制文件敏感字符串提取 | Reverse |
-| `memory_add/query` | RAG 记忆层：存储解题事实或检索知识点 | Core |
+| `recon_scan` | 多端口网络扫描与服务探测 | Native |
+| `kali_sqlmap` | 自动化的 SQL 注入探测与利用 | Kali VM |
+| `kali_steghide` | 隐写图像分析与数据提取 | Kali VM |
+| `reverse_ghidra` | 自动化反编译二进制文件为 C 伪代码 | Docker |
+| `crypto_decode` | Base64/Hex/Morse 等万能解码 | Native |
+| `memory_query` | RAG 记忆层：检索解题技巧与历史事实 | ChromaDB |
 
 ## 📅 路线图 (Roadmap)
 
-- [x] **v1.0 (MVP)**: MCP 协议打通，基础 Agent 解题闭环，RAG 集成。
-- [ ] **v1.5**: 对接 BUUCTF/CTFd 平台 API，实现全自动取题与 Flag 提交。
-- [ ] **v2.0**: 集成 Ghidra/SageMath Server，支持深度逆向与复杂密码学计算。
-- [ ] **v3.0**: 引入递归任务树 (Task Tree)，支持复杂多步 Web 渗透任务。
+- [x] **v1.0**: MCP 协议打通，基础 Agent 解题闭环。
+- [x] **v2.0**: Ghidra 集成、自动化平台对接 (CTFd)。
+- [x] **v3.0**: 任务树与回溯机制 (Backtracking)、Docker 沙箱。
+- [x] **v4.0**: Kali Linux 虚拟机集成，专业级工具链导入。
+- [ ] **v4.5**: 智能 IDA Pro 助手集成。
+- [ ] **v5.0**: 分布式协同渗透与大规模自动化解题。
 
 ## 📄 开源协议
 
