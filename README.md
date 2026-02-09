@@ -1,10 +1,10 @@
-# CTF-ASAS (Capture The Flag - Automated Solving Agent System)
+# CTFBOT (Capture The Flag - Automated Solving Agent System)
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](pyproject.toml)
 [![Python](https://img.shields.io/badge/python-3.10+-yellow.svg)](https://www.python.org/)
 [![MCP](https://img.shields.io/badge/protocol-MCP-green.svg)](https://modelcontextprotocol.io/)
 
-CTF-ASAS 是一款基于大语言模型（LLM）多智能体协作的自动化 CTF（Capture The Flag）解题系统。它利用 **Model Context Protocol (MCP)** 协议，将复杂解题意图与底层专业工具解耦，旨在实现从“题目理解”到“Flag 获取”的全自动化闭环。
+CTFBOT 是一款基于大语言模型（LLM）多智能体协作的自动化 CTF（Capture The Flag）解题系统。它利用 **Model Context Protocol (MCP)** 协议，将复杂解题意图与底层专业工具解耦，旨在实现从“题目理解”到“Flag 获取”的全自动化闭环。
 
 ## 🌟 核心特性
 
@@ -56,15 +56,83 @@ bash scripts/install.sh
 
 确保已安装 [Python 3.10+](https://www.python.org/) 和 [Poetry](https://python-poetry.org/)。
 
-### 2. 配置环境变量
+### 3. 环境准备 (Environment Setup)
 
-如果需要使用 Claude 3.5 真实 LLM，请在目录下创建 `.env` 文件：
+本项目采用 **"Agent-Native"** 架构，将核心逻辑与重型工具链解耦。为了获得完整体验，请确保满足以下环境要求：
 
-```env
-ANTHROPIC_API_KEY=your_sk_key_here
-```
+#### 🔧 1. Docker 环境 (必须)
 
-### 3. 运行程序
+用于运行安全沙箱 (Sandbox) 及 Ghidra 反编译服务。
+
+- 安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/) (macOS/Windows) 或 Docker Engine (Linux)。
+- 确保 docker 服务已启动。
+
+#### 🐉 2. Kali Linux 虚拟机 (强烈推荐)
+
+用于提供专业的渗透测试工具链 (sqlmap, nmap, steghide 等)。
+
+- **虚拟化软件**: [VMware Fusion](https://www.vmware.com/products/fusion.html) (macOS) 或 Workstation (Windows/Linux)。
+- **Kali 镜像**: 下载 [Kali Linux VMware Image](https://www.kali.org/get-kali/#kali-virtual-machines)。
+- **配置要求**:
+  - 用户名/密码: `kali` / `kali` (默认)。
+  - 确保虚拟机处于 **运行状态**。
+  - **macOS 用户**: 需要确保 `vmrun` 命令可用 (通常在 `/Applications/VMware Fusion.app/Contents/Library/vmrun`)。
+
+> **注意**: 如果没有配置 Kali VM，涉及渗透测试的 MCP Tool 将不可用，但通用解密与逻辑分析功能不受影响。
+
+### 4. 运行程序
+
+#### 方式 A：Docker 容器运行 (推荐 - 快速体验)
+
+我们提供了预构建的 Docker 镜像配置，方便快速拉起 Agent 环境。
+
+1. **构建镜像**
+
+   ```bash
+   docker build -t ctfbot .
+   ```
+
+2. **运行容器**
+
+   ```bash
+   # 基础运行（仅限 Mock 模式）
+   docker run --rm -it ctfbot "解码 SGVsbG8="
+
+   # 完整功能（挂载 Docker Socket 以支持沙箱，配置 API Key）
+   docker run --rm -it \
+     -v /var/run/docker.sock:/var/run/docker.sock \
+     -e ANTHROPIC_API_KEY=your_key_here \
+     ctfbot --llm claude "分析这个 Base64: ..."
+   ```
+
+   > **⚠️ 限制**: Docker 容器内无法直接调用宿主机的 VMware `vmrun`，因此 **Kali 工具链在 Docker 模式下不可用**。如需使用 Kali 工具，请使用源码运行或本地可执行文件。
+
+#### 方式 B：源码运行 (全功能)
+
+1. **安装依赖**
+
+   ```bash
+   poetry install
+   ```
+
+2. **配置环境变量**
+   创建 `.env` 文件：
+
+   ```env
+   ANTHROPIC_API_KEY=your_sk_key_here
+   # 可选：自定义 vmrun 路径
+   # KALI_VMRUN_PATH=/path/to/vmrun
+   ```
+
+3. **启动 Agent**
+
+   ```bash
+   # Mock 模式
+   python -m src.asas_agent "题目指令"
+
+   # Claude 模式
+   python -m src.asas_agent --llm claude "题目指令"
+   ```
 
 #### 模式 A：Mock 模式（无需 API Key，验证流程用）
 
@@ -98,4 +166,4 @@ python -m src.asas_agent --llm claude "请扫描目标 IP 192.168.1.1 并识别�
 
 ## 📄 开源协议
 
-MIT License
+Apache License 2.0

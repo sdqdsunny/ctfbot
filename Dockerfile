@@ -1,30 +1,57 @@
-FROM python:3.10-slim
+# stage 1: builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
-    nmap \
+# Install poetry and build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制依赖文件
-COPY pyproject.toml ./
+# Install poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
 
-# 安装 Python 依赖
-RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn \
-    python-nmap \
-    mcp
+# Add poetry to PATH
+ENV PATH="/root/.local/bin:$PATH"
 
-# 复制源代码
-COPY src/ ./src/
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
 
-# 暴露端口
-EXPOSE 8000
+# Install dependencies via poetry
+# optimized for caching: no dev deps, no interaction
+RUN poetry config virtualenvs.create false \
+    && poetry install --only main --no-root --no-interaction --no-ansi
 
-# 设置环境变量
+# stage 2: runner
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime system dependencies
+# nmap: required for recon tools
+# netcat: useful for debugging and simple network tasks
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nmap \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed python modifications from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application source code
+COPY src ./src
+COPY .env.example .env
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/src
 
-# 启动命令
-CMD ["python", "-m", "uvicorn", "asas_mcp.server:create_app", "--host", "0.0.0.0", "--port", "8000"]
+# Create a non-root user for security (optional but good practice)
+# However, if we need docker socket access, we might need root or docker group.
+# For now, running as root inside container is simpler for Docker-in-Docker scenarios (binding sock).
+
+# Entrypoint to run the agent
+ENTRYPOINT ["python", "-m", "src.asas_agent"]
+CMD ["--help"]
