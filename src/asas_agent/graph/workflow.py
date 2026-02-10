@@ -75,17 +75,59 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
     workflow.add_node("orchestrator", orchestrator_node)
     workflow.add_node("tools", ToolNode(tools))
     
+    # Reflection Node Logic
+    def reflection_node(state: AgentState):
+        from langchain_core.messages import SystemMessage, HumanMessage
+        messages = state["messages"]
+        last_tool_msg = messages[-1]
+        
+        # Increment retry count
+        current_retries = state.get("retry_count", 0) + 1
+        
+        reflection_prompt = (
+            f"反思时刻 (第 {current_retries}/3 次尝试)：\n"
+            f"上一步工具调用返回了错误或未找到 Flag。\n"
+            f"错误信息: {last_tool_msg.content[:500]}...\n"
+            "请分析失败原因，并生成一个新的策略。你可以尝试：\n"
+            "1. 检查参数是否正确。\n"
+            "2. 换一个工具或方法。\n"
+            "3. 使用 `retrieve_knowledge` 查找类似问题的解决办法。"
+        )
+        
+        # Inject reflection as a user message to guide the LLM
+        return {
+            "messages": [HumanMessage(content=reflection_prompt)],
+            "retry_count": current_retries
+        }
+
+    workflow.add_node("reflection", reflection_node)
+    
     workflow.add_edge(START, "orchestrator")
     
     def should_continue(state: AgentState):
         messages = state["messages"]
         last_message = messages[-1]
+        
+        # If it's a tool output (ToolMessage)
+        if hasattr(last_message, 'tool_call_id'):
+            # Check for failure keywords in tool output
+            content = str(last_message.content).lower()
+            if "error" in content or "failed" in content or "indeterminate" in content:
+                # Check retry limit
+                retries = state.get("retry_count", 0)
+                if retries < 3:
+                    return "reflection"
+            return "orchestrator"
+            
+        # If it's an AI message with tool calls
         if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
             return "tools"
+            
         return END
         
     workflow.add_conditional_edges("orchestrator", should_continue, ["tools", END])
-    workflow.add_edge("tools", "orchestrator")
+    workflow.add_edge("tools", should_continue) # Check result after tool execution
+    workflow.add_edge("reflection", "orchestrator")
     
     return workflow.compile()
 
