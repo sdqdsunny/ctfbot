@@ -12,6 +12,7 @@ class AgentState(MessagesState):
     challenges: Optional[list]  # List of challenge objects from platform
     agent_results: Optional[Dict[str, Any]]  # {challenge_id: AgentResult}
     current_agent: Optional[str]
+    retry_count: int = 0  # v4 Reflection loop counter
     
     # v1 compatibility fields (will be deprecated)
     user_input: Optional[str]

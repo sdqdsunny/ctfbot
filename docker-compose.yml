@@ -1,21 +1,22 @@
 version: '3.8'
 
 services:
-  ctfbot:
-    build: .
-    image: ctfbot:latest
-    container_name: ctfbot
+  kali-tooling:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.kali
+    container_name: ctfbot-kali
     volumes:
-      # Mount Docker socket to allow running sibling containers (Sandbox)
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Mount current directory to access local files/logs easily if needed
-      # - ./:/app
-    env_file:
-      - .env
-    environment:
-      - PYTHONUNBUFFERED=1
-    # Interactive mode for CLI
-    stdin_open: true
-    tty: true
-    # Default command (can be overridden)
-    command: [ "python", "-m", "src.asas_agent", "--help" ]
+      - ./data/shared:/data # Shared volume for file exchange
+    restart: unless-stopped
+
+  ghidra-service:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.ghidra
+    container_name: ctfbot-ghidra
+    volumes:
+      - ./data/shared:/data
+    restart: unless-stopped
+  # Optional SageMath service for future use
+  # sage-service: ...
