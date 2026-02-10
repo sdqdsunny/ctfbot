@@ -2,9 +2,12 @@ import pytest
 import asyncio
 from asas_agent.graph.workflow import create_agent_graph
 from asas_agent.llm.mock import MockLLM
+from unittest.mock import patch, Mock
 
 @pytest.mark.asyncio
-async def test_platform_full_loop_mock():
+@patch("requests.get")
+@patch("requests.post")
+async def test_platform_full_loop_mock(mock_post, mock_get):
     """
     Test the full loop: 
     1. Fetch challenge from mock platform
@@ -14,6 +17,18 @@ async def test_platform_full_loop_mock():
     """
     llm = MockLLM()
     app = create_agent_graph(llm)
+
+    # Mock responses
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"data": {"name": "Test Chall", "description": "flag is encoded in base64: ZmxhZ3tzeW1ib2xpY19leGVjdXRpb259"}}
+    mock_get.return_value = mock_resp
+    
+    # Mock submit response
+    mock_post_resp = Mock()
+    mock_post_resp.status_code = 200 
+    mock_post_resp.json.return_value = {"success": True, "data": {"status": "correct"}}
+    mock_post.return_value = mock_post_resp
     
     # 模拟从平台 URL 开始
     inputs = {

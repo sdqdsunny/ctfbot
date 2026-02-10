@@ -197,7 +197,6 @@ class AgentNodes:
             
             import json
             parsed_result = result
-            if isinstance(result, str):
                 try:
                     parsed_result = json.loads(result)
                 except:

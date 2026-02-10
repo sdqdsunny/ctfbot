@@ -26,7 +26,7 @@ async def test_v2_5_full_reverse_reasoning_loop_mock():
 
     mcp_mock.call_tool.side_effect = side_effect
     
-    with patch('asas_agent.graph.workflow.MCPToolClient', return_value=mcp_mock):
+    with patch('asas_agent.mcp_client.client.MCPToolClient', return_value=mcp_mock):
         app = create_agent_graph(llm)
         
         inputs = {
