@@ -72,3 +72,61 @@ def fetch_challenge(url: str, token: str = None) -> dict:
 def submit_flag(base_url: str, challenge_id: str, flag: str, token: str = None) -> dict:
     adaptor = CTFdAdaptor(base_url, token)
     return adaptor.submit_flag(challenge_id, flag)
+
+
+# MCP Tool Interface Functions
+def platform_get_challenge(url: str, token: str = None) -> str:
+    """
+    Fetch challenge from CTF platform.
+    
+    Args:
+        url: Challenge URL (e.g., http://ctf.com/challenges/1)
+        token: Optional authentication token
+        
+    Returns:
+        Formatted challenge information as string
+    """
+    try:
+        base_url = "/".join(url.split("/")[:3])
+        challenge_id = url.split("/")[-1]
+        
+        if not challenge_id.isdigit():
+            return f"Error: Could not parse challenge ID from URL: {url}"
+        
+        adaptor = CTFdAdaptor(base_url, token)
+        data = adaptor.get_challenge(challenge_id)
+        
+        # Format the response
+        result = f"题目: {data.get('name', 'Unknown')}\n"
+        result += f"描述: {data.get('description', 'No description')}\n"
+        result += f"分类: {data.get('category', 'Unknown')}\n"
+        
+        return result
+    except Exception as e:
+        return f"Exception: {str(e)}"
+
+
+def platform_submit_flag(challenge_id: str, flag: str, base_url: str, token: str = None) -> str:
+    """
+    Submit flag to CTF platform.
+    
+    Args:
+        challenge_id: Challenge ID
+        flag: Flag to submit
+        base_url: Platform base URL
+        token: Optional authentication token
+        
+    Returns:
+        Submission result as string
+    """
+    try:
+        adaptor = CTFdAdaptor(base_url, token)
+        result = adaptor.submit_flag(challenge_id, flag)
+        
+        status = result.get("status", "unknown")
+        message = result.get("message", "No message")
+        
+        return f"Status: {status}\nMessage: {message}"
+    except Exception as e:
+        return f"Exception: {str(e)}"
+
