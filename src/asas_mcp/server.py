@@ -123,7 +123,7 @@ def web_extract_links(url: str) -> dict:
 # --- Platform Integration ---
 
 @mcp_server.tool()
-def platform_get_challenge(url: str, token: str = None) -> dict:
+def platform_get_challenge(url: str, token: str = None) -> str:
     """从 CTF 平台获取题目详情
     
     Args:
@@ -131,12 +131,12 @@ def platform_get_challenge(url: str, token: str = None) -> dict:
         token: 平台 API Token (可选)
         
     Returns:
-        题目详情字典 (包含描述、分类等)
+        题目详情字符串 (包含描述、分类等)
     """
-    return platform.fetch_challenge(url, token)
+    return platform.platform_get_challenge(url, token)
 
 @mcp_server.tool()
-def platform_submit_flag(base_url: str, challenge_id: str, flag: str, token: str = None) -> dict:
+def platform_submit_flag(base_url: str, challenge_id: str, flag: str, token: str = None) -> str:
     """向 CTF 平台提交 Flag
     
     Args:
@@ -148,7 +148,8 @@ def platform_submit_flag(base_url: str, challenge_id: str, flag: str, token: str
     Returns:
         提交结果及平台反馈
     """
-    return platform.submit_flag(base_url, challenge_id, flag, token)
+    return platform.platform_submit_flag(challenge_id, flag, base_url, token)
+
 
 # --- Kali VM Integration ---
 
