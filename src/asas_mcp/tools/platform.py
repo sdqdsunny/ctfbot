@@ -2,6 +2,7 @@ import requests
 import os
 from urllib.parse import urljoin
 import logging
+import json
 
 class CTFdAdaptor:
     """Adaptor for CTFd platform."""
@@ -97,11 +98,14 @@ def platform_get_challenge(url: str, token: str = None) -> str:
         data = adaptor.get_challenge(challenge_id)
         
         # Format the response
-        result = f"题目: {data.get('name', 'Unknown')}\n"
-        result += f"描述: {data.get('description', 'No description')}\n"
-        result += f"分类: {data.get('category', 'Unknown')}\n"
-        
-        return result
+        return json.dumps({
+            "id": challenge_id,
+            "name": data.get('name', 'Unknown'),
+            "description": data.get('description', 'No description'),
+            "category": data.get('category', 'Unknown'),
+            # Include original URL for context if needed
+            "url": url
+        }, ensure_ascii=False, indent=2)
     except Exception as e:
         return f"Exception: {str(e)}"
 
