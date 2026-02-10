@@ -8,6 +8,11 @@ class AgentState(MessagesState):
     platform_token: Optional[str]
     challenge_id: Optional[str]
     
+    # v3 multi-agent fields
+    challenges: Optional[list]  # List of challenge objects from platform
+    agent_results: Optional[Dict[str, Any]]  # {challenge_id: AgentResult}
+    current_agent: Optional[str]
+    
     # v1 compatibility fields (will be deprecated)
     user_input: Optional[str]
     task_understanding: Optional[str]

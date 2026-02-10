@@ -1,8 +1,9 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 from .state import AgentState
-from typing import List
+from typing import List, Dict, Any
 from langchain_core.tools import BaseTool
+from langchain_core.messages import SystemMessage
 
 def create_react_agent_graph(llm, tools: List[BaseTool]):
     """
@@ -42,6 +43,49 @@ def create_react_agent_graph(llm, tools: List[BaseTool]):
         
     workflow.add_conditional_edges("agent", should_continue, ["tools", END])
     workflow.add_edge("tools", "agent")
+    
+    return workflow.compile()
+
+
+def create_orchestrator_graph(llm, tools: List[BaseTool]):
+    """
+    Create the Orchestrator graph that manages multi-agent coordination.
+    """
+    system_prompt = (
+        "你是 CTF-ASAS v3.0 总指挥 (Orchestrator) 决策脑。\n"
+        "你的主要职责：\n"
+        "1. 使用 `platform_get_challenge` 获取题目列表。\n"
+        "2. 对每道题进行分类，并使用 `dispatch_to_agent` 将任务分配给专业的子代理解答。\n"
+        "3. 在收到子代理返回的 Flag 后，使用 `platform_submit_flag` 进行提交。\n"
+        "4. 管理解题的整体策略与状态，汇总结果生成最终报告。\n"
+        "5. 如果解题失败，根据子代理的反馈决定是否重试或分配给其他代理。"
+    )
+    
+    llm_with_tools = llm.bind_tools(tools)
+    
+    def orchestrator_node(state: AgentState):
+        messages = state["messages"]
+        if not any(isinstance(m, SystemMessage) for m in messages):
+            messages = [SystemMessage(content=system_prompt)] + messages
+            
+        result = llm_with_tools.invoke(messages)
+        return {"messages": [result]}
+
+    workflow = StateGraph(AgentState)
+    workflow.add_node("orchestrator", orchestrator_node)
+    workflow.add_node("tools", ToolNode(tools))
+    
+    workflow.add_edge(START, "orchestrator")
+    
+    def should_continue(state: AgentState):
+        messages = state["messages"]
+        last_message = messages[-1]
+        if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+            return "tools"
+        return END
+        
+    workflow.add_conditional_edges("orchestrator", should_continue, ["tools", END])
+    workflow.add_edge("tools", "orchestrator")
     
     return workflow.compile()
 
