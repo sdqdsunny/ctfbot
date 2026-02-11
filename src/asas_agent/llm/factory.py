@@ -15,10 +15,21 @@ class LMStudioLLM(BaseChatModel):
         # 如果绑定了工具且不是桥接模式，尝试在提示词中注入工具说明
         formatted_msgs = []
         for m in messages:
-            role = "user"
-            if m.type == "system": role = "system"
-            elif m.type == "ai": role = "assistant"
-            formatted_msgs.append({"role": role, "content": m.content or ""})
+            if m.type == "system":
+                formatted_msgs.append({"role": "system", "content": m.content})
+            elif m.type == "ai":
+                msg = {"role": "assistant", "content": m.content or ""}
+                if hasattr(m, "tool_calls") and m.tool_calls:
+                    # In some local models, we might need to format tool calls into content
+                    # but for now let's hope it can handle empty content with tool_calls if we were to send them
+                    pass
+                formatted_msgs.append(msg)
+            elif m.type == "tool":
+                # Most local LLMs handle 'user' role better for tool results if they don't support 'tool' role
+                # We add a clear prefix to help the model identify it's a tool output
+                formatted_msgs.append({"role": "user", "content": f"🛠️ Tool Output ({m.name}):\n{m.content}"})
+            else:
+                formatted_msgs.append({"role": "user", "content": m.content})
         
         payload = {
             "model": self.model_name,

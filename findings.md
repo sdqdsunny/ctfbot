@@ -25,7 +25,7 @@
 
 | 问题 | 解决方案 |
 |-------|------------|
-|       |            |
+| 'list' object error | sub-agent `astream` 在某些情况下（如多节点同步更新或特定 LLM 行为）可能返回非 dict 类型事件（如 list），导致 `.items()` 崩溃。 | 在循环前增加 `isinstance(event, dict)` 校验，并对常见的 list 包裹进行解包处理。 |
 
 ## 资源链接
 

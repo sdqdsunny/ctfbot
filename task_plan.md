@@ -42,6 +42,21 @@
 - [x] 实证全链路本地化运行：Orchestrator 正确作出决策并调度 MCP 工具
 - **状态：** complete
 
+## 阶段 5：稳定性增强与 Bug 修复
+
+- [x] 修复 `sqli-labs` 测试中遇到的 `'list' object has no attribute 'items'` 异常
+- [x] 在 `dispatcher.py` 和 `workflow.py` 中增加鲁棒的类型检查与防御性编程
+- [ ] 验证 Web Agent 在 `sqli-labs` 环境下的全链路运行 (Less-1)
+- **状态：** in_progress
+
+## 阶段 6：IDA Pro 集成 (v4.5)
+
+- [ ] 实现 `IdaClient` 的基础通信协议 (SSE/HTTP)
+- [ ] 完善 `ida_tools.py` 中的 MCP 工具注册与参数校验
+- [ ] 升级 `ReverseAgent` 提示词，注入 IDA 专业操作 SOP
+- [ ] 验证 IDA Headless 分析流程
+- **状态：** planned
+
 ## 关键待办问题 (Critical Todos)
 <!-- 
   内容：必须解决的关键代码点、潜在错误或不确定性。
@@ -57,7 +72,7 @@
 -->
 | 错误 | 原因 | 解决方案 |
 |-------|--------|------------|
-|       |        |            |
+| 'list' has no items | sub-agent astream 可能返回非字典事件 | 增加 isinstance(event, dict) 校验与回滚逻辑 |
 
 ## 进度记录 (Progress Tracker)
 <!-- 
@@ -66,3 +81,4 @@
 -->
 - [2026-02-11] 任务启动：CLI 恢复与事实仓库增强。
 - [2026-02-11] 本地化突破：成功实现 LM Studio 高性能集成，解决 SDK 兼容性及工具调用冲突。
+- [2026-02-11] 快速响应：修复了 SQLi Agent 测试中的 'list' 迭代异常，增强系统鲁棒性。

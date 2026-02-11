@@ -94,6 +94,8 @@ def main(input_text, url, token, llm, api_key, v2, v3, config):
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         
         async for event in app.astream(state):
+            if not isinstance(event, dict):
+                continue
             for key, value in event.items():
                 if key == "orchestrator":
                     msg = value["messages"][-1]
@@ -136,6 +138,8 @@ def main(input_text, url, token, llm, api_key, v2, v3, config):
         print(f"🚀 Starting v2 Mission: {initial_msg}")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         async for event in app.astream(inputs):
+            if not isinstance(event, dict):
+                continue
             for key, value in event.items():
                 if key == "agent":
                     msg = value["messages"][-1]

@@ -8,34 +8,34 @@ async def convert_mcp_to_langchain_tools(mcp_client: MCPToolClient) -> List[Stru
     mcp_tools = await mcp_client.list_tools()
     langchain_tools = []
     
-    from pydantic import create_model, Field
+    from langchain_core.tools import BaseTool
+    from pydantic import Field
     
+    class MCPTool(BaseTool):
+        name: str = ""
+        description: str = ""
+        mcp_client: Any = None
+        
+        def _run(self, **kwargs):
+            raise NotImplementedError("Use _arun")
+            
+        async def _arun(self, **kwargs):
+            # 兼容性处理：如果所有参数被包裹在第一个 args 中
+            final_args = kwargs
+            if not kwargs and hasattr(self, '_args') and self._args:
+                # 这种情况很少见，但以防万一
+                pass
+                
+            print(f"DEBUG [MCPTool]: {self.name} final_args={final_args}")
+            return await self.mcp_client.call_tool(self.name, final_args)
+
     for tool in mcp_tools:
         print(f"DEBUG: Processing tool schema for {tool.name}")
-        # Create closure to capture tool name
-        def make_wrapper(tool_name: str):
-            async def _wrapper(**kwargs):
-                # 预处理参数：规避 Pydantic 或 LangChain 产生的 v__args 嵌套
-                final_args = {}
-                for k, v in kwargs.items():
-                    if k == 'v__args' and isinstance(v, dict):
-                        final_args.update(v)
-                    else:
-                        final_args[k] = v
-                
-                # print(f"DEBUG: _wrapper tool={tool_name} final_args={final_args}")
-                return await mcp_client.call_tool(tool_name, final_args)
-            _wrapper.__name__ = tool_name
-            return _wrapper
         
-        # DEPRECATED: Pydantic based args_schema is causing v__args conflicts with local LLMs
-        # For robustness, we now use a clean wrapper without strict validation
-        
-        lc_tool = StructuredTool.from_function(
-            coroutine=make_wrapper(tool.name),
+        lc_tool = MCPTool(
             name=tool.name,
             description=tool.description or "No description",
-            args_schema=None # Disable strict pydantic validation to avoid v__args injection
+            mcp_client=mcp_client
         )
         langchain_tools.append(lc_tool)
         
