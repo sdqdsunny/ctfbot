@@ -11,6 +11,9 @@ class AgentState(MessagesState):
     # v3 multi-agent fields
     challenges: Optional[list]  # List of challenge objects from platform
     agent_results: Optional[Dict[str, Any]]  # {challenge_id: AgentResult}
+    fact_store: Dict[str, Dict[str, Any]] = {
+        "recon": {}, "web": {}, "crypto": {}, "reverse": {}, "common": {}
+    }
     current_agent: Optional[str]
     retry_count: int = 0  # v4 Reflection loop counter
     

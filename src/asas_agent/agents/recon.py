@@ -15,5 +15,5 @@ def create_recon_agent(llm, tools: List[BaseTool]):
         "4. 汇报发现的攻击面，为其他专业代理提供线索。"
     )
     
-    graph = create_react_agent_graph(llm, tools)
+    graph = create_react_agent_graph(llm, tools, system_prompt=system_prompt)
     return graph

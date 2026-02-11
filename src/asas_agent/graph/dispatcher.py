@@ -9,6 +9,7 @@ class AgentResult(BaseModel):
     status: str = Field(..., description="success, failure, or indeterminate")
     flag: Optional[str] = Field(None, description="The flag if found")
     reasoning: str = Field(..., description="Summary of reasoning and actions taken")
+    extracted_facts: Dict[str, Any] = Field(default_factory=dict, description="Structured facts found (e.g. {port: 80})")
     artifacts: List[str] = Field(default_factory=list, description="Paths to extracted files or data")
     error: Optional[str] = Field(None, description="Error message if any")
 
@@ -20,6 +21,11 @@ from ..agents.recon import create_recon_agent
 from ..agents.writeup import create_writeup_agent
 from ..agents.memory import create_memory_agent
 
+from ..utils.config import config_loader
+from ..llm.factory import create_llm
+from .tools_factory import get_tools_for_agent
+from langchain_core.messages import HumanMessage
+
 AGENT_CREATORS = {
     "crypto": create_crypto_agent,
     "web": create_web_agent,
@@ -30,14 +36,15 @@ AGENT_CREATORS = {
 }
 
 @tool
-async def dispatch_to_agent(agent_type: str, task: str, platform_context: Dict[str, Any]) -> str:
+async def dispatch_to_agent(agent_type: str, task: str, platform_url: Optional[str] = None, challenge_id: Optional[str] = None) -> str:
     """
     Dispatch a task to a specialized agent.
     
     Args:
         agent_type: One of 'crypto', 'web', 'reverse', 'recon'
-        task: Detailed description of the task to perform
-        platform_context: Dictionary containing platform_url, platform_token, and challenge_id
+        task: Detailed description of the task
+        platform_url: URL of the CTF platform (optional)
+        challenge_id: ID of the challenge (optional)
         
     Returns:
         A JSON string containing the AgentResult.
@@ -49,26 +56,87 @@ async def dispatch_to_agent(agent_type: str, task: str, platform_context: Dict[s
             "error": f"Agent type '{agent_type}' is not registered."
         })
         
-    # In a real Scenario, we would resolve the LLM and tools for this agent type
-    # For now, we simulate the execution to maintain the architecture flow.
-    # The actual integration with LLMFactory will be done in Task 4.
-    
-    # Simulating a specialized agent's reasoning
-    reasoning = f"Specialized {agent_type} agent analyzed the task: {task}"
-    
-    # Mocking a success scenario for crypto/web with flags
-    flag = None
-    if "flag" in task.lower() or "decode" in task.lower():
-        flag = "flag{v3_multi_agent_power}"
-        status = "success"
-    else:
-        status = "indeterminate"
+    # 1. Load agent configuration
+    agent_config = config_loader.get_agent_config(agent_type)
+    if not agent_config:
+        # Fallback to a default if not found in YAML
+        agent_config = config_loader.get_orchestrator_config()
         
-    result = AgentResult(
-        status=status,
-        flag=flag,
-        reasoning=reasoning,
-        artifacts=[]
-    )
+    print(f"--- [Dispatch] Creating {agent_type} agent with model: {agent_config.get('model')} ---")
     
-    return result.model_dump_json()
+    # 2. Instantiate LLM
+    try:
+        llm = create_llm(agent_config)
+    except Exception as e:
+        return json.dumps({
+            "status": "failure",
+            "reasoning": f"Failed to initialize LLM for {agent_type}",
+            "error": str(e)
+        })
+
+    # 3. Get domain tools
+    tools = get_tools_for_agent(agent_type)
+    
+    # 4. Create and compile the sub-agent graph
+    agent_creator = AGENT_CREATORS[agent_type]
+    graph = agent_creator(llm, tools)
+    
+    # 5. Invoke sub-agent
+    try:
+        # Construct initial state with platform context and task message
+        inputs = {
+            "messages": [HumanMessage(content=task)],
+            "platform_url": platform_url,
+            "challenge_id": challenge_id
+        }
+        
+        # Run graph (streaming for debug, but we return final result)
+        final_state = await graph.ainvoke(inputs)
+        
+        # 6. Extract result from final state
+        # Usually the last message from the AI
+        messages = final_state.get("messages", [])
+        if not messages:
+            return json.dumps({"status": "failure", "reasoning": "Sub-agent returned no messages."})
+            
+        last_message = messages[-1]
+        reasoning = last_message.content if hasattr(last_message, 'content') else str(last_message)
+        
+        # 7. Post-process to find Flag and Facts
+        flag = None
+        extracted_facts = {}
+        import re
+        
+        # Extract Flag
+        flag_match = re.search(r"flag\{.*?\}", reasoning, re.IGNORECASE)
+        if flag_match:
+            flag = flag_match.group(0)
+            status = "success"
+        else:
+            status = "indeterminate"
+            
+        # Extract Facts (Look for JSON block or specific tag)
+        # Pattern: FACTS: { ... }
+        facts_match = re.search(r"FACTS:\s*(\{.*?\})", reasoning, re.DOTALL)
+        if facts_match:
+            try:
+                extracted_facts = json.loads(facts_match.group(1))
+            except:
+                pass
+
+        result = AgentResult(
+            status=status,
+            flag=flag,
+            reasoning=reasoning,
+            extracted_facts=extracted_facts,
+            artifacts=[]
+        )
+        return result.model_dump_json()
+
+    except Exception as e:
+        print(f"Error during sub-agent execution: {str(e)}")
+        return json.dumps({
+            "status": "failure", 
+            "reasoning": f"Execution error in {agent_type} agent",
+            "error": str(e)
+        })

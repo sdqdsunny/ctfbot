@@ -15,5 +15,5 @@ def create_web_agent(llm, tools: List[BaseTool]):
         "4. 协助进行 XSS, SSRF, RCE 等漏洞的验证。"
     )
     
-    graph = create_react_agent_graph(llm, tools)
+    graph = create_react_agent_graph(llm, tools, system_prompt=system_prompt)
     return graph

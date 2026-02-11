@@ -1,7 +1,7 @@
 from typing import List
 from langchain_core.tools import BaseTool
 from ..graph.workflow import create_react_agent_graph
-from ...asas_mcp.tools.ida_tools import ida_decompile, ida_xrefs_to, ida_py_eval
+from asas_mcp.tools.ida_tools import ida_decompile, ida_xrefs_to, ida_py_eval
 
 def create_reverse_agent(llm, tools: List[BaseTool]):
     """
