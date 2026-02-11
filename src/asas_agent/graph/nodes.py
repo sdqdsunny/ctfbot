@@ -197,10 +197,10 @@ class AgentNodes:
             
             import json
             parsed_result = result
-                try:
-                    parsed_result = json.loads(result)
-                except:
-                    pass
+            try:
+                parsed_result = json.loads(result)
+            except:
+                pass
 
             update = {"tool_result": parsed_result}
             

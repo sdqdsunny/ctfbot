@@ -25,6 +25,10 @@ class ReActMockLLM:
         # Determine intent based on content logic (similar to v1 MockLLM)
         intent = self._determine_intent(content, messages)
         
+        if "analyze:" in content.lower():
+            # Simulate a sub-agent finding something
+            return AIMessage(content="I analyzed the target. I found an open port 81 and a hidden file 'secret.txt'. FACTS: {\"port_81\": \"open\", \"hidden_file\": \"secret.txt\"}")
+
         if intent == "final_answer":
             return AIMessage(content="Mission accomplished. The flag is flag{mock_flag}.")
             
@@ -58,16 +62,20 @@ class ReActMockLLM:
                     return "crypto_decode"
                     
         # Initial triggers
-        if "start" in user_msg or "fetch" in user_msg:
-             # Only if we haven't fetched yet
-             if not any(isinstance(m, ToolMessage) and m.name == "platform_get_challenge" for m in history):
-                return "platform_get_challenge"
-                
+        if "fetch" in user_msg or "get challenge" in user_msg:
+            return "platform_get_challenge"
+
         if "decode" in user_msg:
             return "crypto_decode"
             
         if "submit" in user_msg:
             return "platform_submit_flag"
+
+        if "scan" in user_msg or "explore" in user_msg or "analyze" in user_msg:
+            # Check if we already have facts in history
+            if any("port_81" in str(m.content) for m in history):
+                return "final_answer"
+            return "dispatch_to_agent"
             
         return None
 
@@ -107,6 +115,22 @@ class ReActMockLLM:
                     "challenge_id": "1", # Mock ID
                     "flag": "flag{mock_flag}",
                     "base_url": "http://mock-ctf.local"
+                },
+                "id": call_id
+            }
+            
+        elif intent == "dispatch_to_agent":
+            # Select agent based on context
+            target_agent = "recon"
+            if "crypto" in context: target_agent = "crypto"
+            elif "web" in context: target_agent = "web"
+            
+            return {
+                "name": "dispatch_to_agent",
+                "args": {
+                    "agent_type": target_agent,
+                    "task": f"Analyze: {context}",
+                    "platform_context": {}
                 },
                 "id": call_id
             }
