@@ -34,7 +34,9 @@ class KaliExecutor:
         ]
         
         try:
-            subprocess.run(run_cmd, check=True, capture_output=True)
+            res1 = subprocess.run(run_cmd, capture_output=True, text=True)
+            if res1.returncode != 0:
+                return f"Error running program in guest: {res1.stderr}"
             
             # 2. Copy result file from guest to host
             copy_cmd = [
@@ -46,23 +48,28 @@ class KaliExecutor:
                 guest_tmp_file,
                 host_tmp_file
             ]
-            subprocess.run(copy_cmd, check=True, capture_output=True)
+            res2 = subprocess.run(copy_cmd, capture_output=True, text=True)
+            if res2.returncode != 0:
+                return f"Error copying file from guest: {res2.stderr}"
             
             # 3. Read host file and return
-            with open(host_tmp_file, 'r') as f:
-                output = f.read()
+            if os.path.exists(host_tmp_file):
+                with open(host_tmp_file, 'r') as f:
+                    output = f.read()
+                os.remove(host_tmp_file)
+                print(f"DEBUG [KaliExecutor] Output length: {len(output)}")
+                # Print a bit more to see if databases are there
+                print(f"DEBUG [KaliExecutor] Output end snippet: {output[-500:]}...")
+            else:
+                output = "Error: Host output file not found after copy."
             
-            # Cleanup
-            os.remove(host_tmp_file)
-            # Optional: remove file in guest (don't fail if this fails)
+            # Cleanup in guest
             subprocess.run([
                 self.vmrun_path, "-gu", self.user, "-gp", self.password, 
                 "runProgramInGuest", self.vmx_path, "/bin/rm", guest_tmp_file
             ], capture_output=True)
             
             return output
-        except subprocess.CalledProcessError as e:
-            return f"Command faild with error: {e.stderr.decode() if e.stderr else str(e)}"
         except Exception as e:
             return f"Execution error: {str(e)}"
 
@@ -89,7 +96,9 @@ def ensure_package(package_name: str):
 def sqlmap(url: str, args: str = "--batch --banner") -> str:
     ensure_package("sqlmap")
     executor = get_executor()
-    return executor.execute(f"sqlmap -u '{url}' {args}")
+    cmd = f"sqlmap -u '{url}' {args}"
+    print(f"DEBUG [kali.sqlmap] Final command: {cmd}")
+    return executor.execute(cmd)
 
 def dirsearch(url: str, args: str = "-e php,html,js --format=simple") -> str:
     ensure_package("dirsearch")

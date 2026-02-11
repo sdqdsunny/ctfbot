@@ -27,6 +27,7 @@ class MCPToolClient:
         async with stdio_client(self.server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
+                print(f"DEBUG [MCPClient]: Calling {tool_name} with {arguments}")
                 result = await session.call_tool(tool_name, arguments)
                 # Assuming text result for now
                 if hasattr(result, 'content') and result.content:

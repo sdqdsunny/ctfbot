@@ -16,14 +16,14 @@ def _parse_manual_tool_calls(content: str) -> List[Dict[str, Any]]:
     tool_calls = []
     
     # Pattern 1: CALL: tool(arg=val)
-    call_match = re.search(r"CALL:\s*(\w+)\((.*)\)", content)
+    call_match = re.search(r"CALL:\s*(\w+)\((.*?)\)", content, re.DOTALL)
     if call_match:
         tool_name = call_match.group(1)
         args_str = call_match.group(2)
         args = {}
         try:
             if args_str.strip():
-                parts = re.findall(r'(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|\d+)', args_str)
+                parts = re.findall(r'(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|\d+)', args_str, re.DOTALL)
                 for k, v in parts:
                     args[k] = ast.literal_eval(v)
             tool_calls.append({"name": tool_name.strip(), "args": args, "id": f"call_{uuid.uuid4().hex[:8]}", "type": "tool_call"})
@@ -34,11 +34,54 @@ def _parse_manual_tool_calls(content: str) -> List[Dict[str, Any]]:
         msg_match = re.search(r"<\|message\|>(.*)", content)
         if msg_match:
             try:
-                args = json.loads(msg_match.group(1))
+                args_str = msg_match.group(1)
+                # Cleanup if there are trailing tags
+                args_str = re.split(r"<\|", args_str)[0]
+                args = json.loads(args_str)
+                
                 tool_name = "unknown"
                 if "to=" in content:
-                    tn_match = re.search(r"to=(\w+)", content)
-                    if tn_match: tool_name = tn_match.group(1)
+                    # Match word characters, dots, underscores, and colon
+                    tn_match = re.search(r"to=([\w\.\:]+)", content)
+                    if tn_match: 
+                        tool_name = tn_match.group(1)
+                        # Remove CALL: prefix if present
+                        if tool_name.upper().startswith("CALL:"):
+                            tool_name = tool_name[5:]
+                            
+                        # Case 1: dotted name (e.g., agent.tool)
+                        if "." in tool_name:
+                            tool_name = tool_name.split(".")[-1]
+                        
+                        # Case 2: common hallucinations
+                        prefixes = [
+                            "web_agent_", "crypto_agent_", "reverse_agent_", "recon_agent_", 
+                            "web_agent.", "crypto_agent.", "tool_", "sub_agent_", "kali_"
+                        ]
+                        # Sort prefixes by length descending to match longest first
+                        for p in sorted(prefixes, key=len, reverse=True):
+                            if tool_name.startswith(p):
+                                # Special case: if tool_name is "kali_sqlmap_tool" and prefix is "kali_", 
+                                # we might want to KEEP "kali_". 
+                                # But wait, the whitelist has "kali_sqlmap_tool".
+                                # If LLM says "tool_kali_sqlmap_tool", we strip "tool_" -> "kali_sqlmap_tool" (MATCH)
+                                # If LLM says "kali_sqlmap_tool", and we strip "kali_" -> "sqlmap_tool" (NO MATCH?)
+                                
+                                # Actually, let's look at tools_factory.py names:
+                                # kali_sqlmap_tool, web_dir_scan_tool etc.
+                                # Let's only strip prefixes that are clearly redundant.
+                                pass
+                        
+                        # Just do a simple loop for now but be careful not to over-strip
+                        for p in ["web_agent_", "crypto_agent_", "reverse_agent_", "recon_agent_", "tool_", "sub_agent_"]:
+                            if tool_name.startswith(p):
+                                tool_name = tool_name[len(p):]
+                                break
+                                
+                        # Case 3: .run_tool_name -> tool_name
+                        if tool_name.startswith("run_"):
+                            tool_name = tool_name[4:]
+                            
                 tool_calls.append({"name": tool_name.strip(), "args": args, "id": f"call_{uuid.uuid4().hex[:8]}", "type": "tool_call"})
             except: pass
             
@@ -77,19 +120,52 @@ def create_react_agent_graph(llm, tools: List[BaseTool], system_prompt: str = No
         if system_prompt and not any(isinstance(m, SystemMessage) for m in messages):
             messages = [SystemMessage(content=system_prompt)] + messages
             
+        print(f"DEBUG [AgentNode]: Calling LLM with {len(messages)} messages...")
         result = llm.invoke(messages)
+        print(f"DEBUG [AgentNode]: LLM Output: {str(result.content)[:200]}...")
         
         # Manual parsing for local LLMs
         manual_calls = _parse_manual_tool_calls(str(result.content))
         if manual_calls and not (hasattr(result, 'tool_calls') and result.tool_calls):
             result.tool_calls = manual_calls
+            print(f"DEBUG [AgentNode]: Parsed manual tool_calls: {manual_calls}")
             
         return {"messages": [result]}
         
+    async def tools_node(state: AgentState):
+        """Custom tool execution node"""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        tool_results = []
+        for tool_call in last_message.tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call["args"]
+            tool_call_id = tool_call["id"]
+            
+            # Find the tool
+            target_tool = next((t for t in tools if t.name == tool_name), None)
+            if not target_tool:
+                print(f"ERROR: Tool '{tool_name}' not found!")
+                tool_results.append(ToolMessage(content=f"Error: Tool '{tool_name}' not found.", tool_call_id=tool_call_id, name=tool_name))
+                continue
+                
+            print(f"DEBUG [tools_node]: Executing {tool_name}({tool_args})")
+            try:
+                # Use ainvoke - LangChain handles sync tools in a separate thread pool automatically
+                result = await target_tool.ainvoke(tool_args)
+                print(f"DEBUG [tools_node]: Result snippet: {str(result)[:200]}...")
+                tool_results.append(ToolMessage(content=str(result), tool_call_id=tool_call_id, name=tool_name))
+            except Exception as e:
+                print(f"ERROR executing tool {tool_name}: {e}")
+                tool_results.append(ToolMessage(content=f"Error: {str(e)}", tool_call_id=tool_call_id, name=tool_name))
+                
+        return {"messages": tool_results}
+
     # Build graph
     workflow = StateGraph(AgentState)
     workflow.add_node("agent", agent_node)
-    workflow.add_node("tools", ToolNode(tools))
+    workflow.add_node("tools", tools_node)
     
     workflow.add_edge(START, "agent")
     
@@ -99,8 +175,10 @@ def create_react_agent_graph(llm, tools: List[BaseTool], system_prompt: str = No
         last_message = messages[-1]
         # If LLM made tool calls, route to tools node
         if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+            print(f"DEBUG [should_continue]: Routing to 'tools' with {len(last_message.tool_calls)} calls.")
             return "tools"
         # Otherwise, end the conversation
+        print("DEBUG [should_continue]: Routing to END.")
         return END
         
     workflow.add_conditional_edges("agent", should_continue, ["tools", END])
@@ -116,18 +194,18 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
     system_prompt = (
         "你是 CTF-ASAS v3.0 总指挥 (Orchestrator) 决策脑。\n"
         "你的主要职责：\n"
-        "1. 使用 `platform_get_challenge` 获取题目列表。\n"
-        "2. 对每道题进行分类，并使用 `dispatch_to_agent` 将任务分配给专业的子代理解答。\n"
-        "3. 在收到子代理返回的 Flag 后，使用 `platform_submit_flag` 进行提交。\n"
-        "4. 管理解题的整体策略与状态，汇总结果生成最终报告。\n"
-        "5. 如果解题失败，根据子代理的反馈决定是否重试或分配给其他代理。\n\n"
-        "注意：如果需要调用工具，请在回答的最后按照以下格式输出（不要使用原生 Tool Calling）：\n"
+        "1. 使用 `platform_get_challenge` 获取题目详情（仅限 CTFd 类平台 URL）。\n"
+        "2. 如果是普通 URL 或已获取详情，使用 `dispatch_to_agent` 将任务分配给专业的子代理。必需指定正确的 `agent_type`。\n"
+        "3. **可选 Agent 类型**：'web' (Web 安全/注入/爆破), 'crypto' (密码学), 'reverse' (逆向工程/二进制), 'recon' (扫描/信息收集)。\n"
+        "4. 在收到子代理返回的 Flag 后，使用 `platform_submit_flag` 进行提交。\n"
+        "5. 管理解题的整体策略与状态，汇总结果生成最终报告。\n\n"
+        "注意：如果需要调用工具，请在回答的最后按照以下格式输出：\n"
         "CALL: tool_name(arg1=\"value1\", arg2=\"value2\")\n\n"
         "可用工具：\n"
-        "- dispatch_to_agent(agent_type, task, platform_url, challenge_id)\n"
+        "- dispatch_to_agent(agent_type, task, platform_url=\"\", challenge_id=\"\")\n"
         "- platform_get_challenge(url)\n"
         "- platform_submit_flag(challenge_id, flag, base_url)\n\n"
-        "注意：请优先利用 [事实仓库] 中的信息进行决策，避免重复劳动。"
+        "注意：请优先利用 [事实仓库] 中的信息进行决策。如果 `platform_get_challenge` 报错，请直接尝试 `dispatch_to_agent`。"
     )
     
     def orchestrator_node(state: AgentState):
@@ -141,9 +219,11 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
             try:
                 result_data = json.loads(str(messages[-1].content))
                 new_facts = result_data.get("extracted_facts", {})
-                if new_facts:
+                if new_facts and isinstance(new_facts, dict):
                     for k, v in new_facts.items():
                         fact_store["common"][k] = v
+                elif new_facts:
+                    print(f"⚠️ [Orchestrator] Unexpected facts type: {type(new_facts)}")
             except Exception as e:
                 print(f"FAILED to merge facts: {e}")
             
@@ -174,6 +254,7 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         # 直接调用模型，不绑定工具定义
         ai_msg = llm.invoke(new_messages)
         content = str(ai_msg.content)
+        print(f"DEBUG [Orchestrator]: Raw LLM Output: {content}")
         
         # 解析正则指令 CALL: tool_name(...) 或模型原生的 <|channel|> 格式
         import re
@@ -183,13 +264,13 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         args = {}
         
         # 模式 1: CALL: format
-        call_match = re.search(r"CALL:\s*(\w+)\((.*)\)", content)
+        call_match = re.search(r"CALL:\s*(\w+)\((.*?)\)", content, re.DOTALL)
         if call_match:
             tool_name = call_match.group(1)
             args_str = call_match.group(2)
             try:
                 if args_str.strip():
-                    parts = re.findall(r'(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|\d+)', args_str)
+                    parts = re.findall(r'(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|\d+)', args_str, re.DOTALL)
                     for k, v in parts:
                         args[k] = ast.literal_eval(v)
             except: pass
@@ -199,10 +280,29 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
             msg_match = re.search(r"<\|message\|>(.*)", content)
             if msg_match:
                 try:
-                    args = json.loads(msg_match.group(1))
+                    args_str = msg_match.group(1)
+                    args_str = re.split(r"<\|", args_str)[0]
+                    args = json.loads(args_str)
                     # 尝试从上下文推断 tool_name
                     if "to=" in content:
-                        tool_name = re.search(r"to=(\w+)", content).group(1)
+                        tn_match = re.search(r"to=([\w\.\:]+)", content)
+                        if tn_match:
+                            tool_name = tn_match.group(1)
+                            # 移除 CALL: 前缀
+                            if tool_name.upper().startswith("CALL:"):
+                                tool_name = tool_name[5:]
+                            
+                            if "." in tool_name:
+                                tool_name = tool_name.split(".")[-1]
+                                if tool_name.startswith("run_"):
+                                    tool_name = tool_name[4:]
+                            
+                            # 通用前缀剥离
+                            prefixes = ["web_agent_", "crypto_agent_", "reverse_agent_", "recon_agent_", "web_agent.", "crypto_agent.", "tool_", "sub_agent_"]
+                            for p in prefixes:
+                                if tool_name.startswith(p):
+                                    tool_name = tool_name[len(p):]
+                                    break
                 except: pass
                 
         # 模式 3: 简单的 JSON 块
@@ -223,6 +323,7 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
                 "id": f"call_{uuid.uuid4().hex[:8]}",
                 "type": "tool_call"
             }]
+            print(f"DEBUG [Orchestrator]: Injected tool_calls: {ai_msg.tool_calls}")
             
         return {"messages": [ai_msg], "fact_store": fact_store}
 

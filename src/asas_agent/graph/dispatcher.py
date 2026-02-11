@@ -24,7 +24,7 @@ from ..agents.memory import create_memory_agent
 from ..utils.config import config_loader
 from ..llm.factory import create_llm
 from .tools_factory import get_tools_for_agent
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 AGENT_CREATORS = {
     "crypto": create_crypto_agent,
@@ -90,16 +90,69 @@ async def dispatch_to_agent(agent_type: str, task: str, platform_url: Optional[s
             "challenge_id": challenge_id
         }
         
-        # Run graph (streaming for debug, but we return final result)
-        final_state = await graph.ainvoke(inputs)
+        print(f"--- [Sub-Agent: {agent_type}] Mission Start ---")
+        
+        # Run graph and trace progress
+        # Run graph and trace progress
+        final_state = inputs
+        async for event in graph.astream(inputs, stream_mode="updates"):
+            # DEBUG: print raw event
+            print(f"DEBUG [Dispatcher] raw event: {str(event)[:300]}")
+            
+            # event is {node_name: {updates}}
+            if not isinstance(event, dict):
+                print(f"⚠️ [Dispatcher] Unexpected event type: {type(event)}. Content: {str(event)[:200]}")
+                if isinstance(event, list) and len(event) > 0 and isinstance(event[0], dict):
+                    # Fallback for unexpected list of dicts
+                    event = event[0]
+                else:
+                    continue
+
+            for node, update in event.items():
+                if node == "__start__": continue
+                print(f"   [{agent_type}] Update from Node: {node}")
+                
+                if isinstance(update, dict):
+                    # For messages, usually it's addition (reducer)
+                    if "messages" in update:
+                        if "messages" not in final_state: final_state["messages"] = []
+                        msgs = update["messages"]
+                        if not isinstance(msgs, list): msgs = [msgs]
+                        final_state["messages"].extend(msgs)
+                        
+                        # Logging
+                        for m in msgs:
+                            role_name = type(m).__name__
+                            content_snippet = str(m.content).replace("\n", " ")[:150]
+                            print(f"   [{agent_type}] 📝 {role_name}: {content_snippet}...")
+                            if hasattr(m, 'tool_calls') and m.tool_calls:
+                                print(f"   [{agent_type}] 🔧 调用工具: {m.tool_calls[0].get('name')}")
+                            
+                    # For other fields
+                    for k, v in update.items():
+                        if k != "messages": final_state[k] = v
+                else:
+                    # Fallback for non-dict updates
+                    final_state[node] = update
+        
+        print(f"--- [Sub-Agent: {agent_type}] Mission Finished ---")
         
         # 6. Extract result from final state
-        # Usually the last message from the AI
+        # The goal is to return a meaningful string (the last AI message)
         messages = final_state.get("messages", [])
         if not messages:
             return json.dumps({"status": "failure", "reasoning": "Sub-agent returned no messages."})
             
-        last_message = messages[-1]
+        # Find the last AI message that is not just tool calls
+        last_message = None
+        for m in reversed(messages):
+            if isinstance(m, AIMessage) and m.content:
+                last_message = m
+                break
+        
+        if not last_message:
+            last_message = messages[-1]
+        
         reasoning = last_message.content if hasattr(last_message, 'content') else str(last_message)
         
         # 7. Post-process to find Flag and Facts
