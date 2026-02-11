@@ -1,120 +1,120 @@
 #!/bin/bash
-# Initialize planning files for a new session
-# Usage: ./init-session.sh [project-name]
+# 初始化新会话的规划文件 (Chinese Version)
+# 用法: ./init-session.sh [项目名称]
 
 set -e
 
 PROJECT_NAME="${1:-project}"
 DATE=$(date +%Y-%m-%d)
 
-echo "Initializing planning files for: $PROJECT_NAME"
+echo "正在初始化规划文件，项目：$PROJECT_NAME"
 
-# Create task_plan.md if it doesn't exist
+# 创建 task_plan.md
 if [ ! -f "task_plan.md" ]; then
     cat > task_plan.md << 'EOF'
-# Task Plan: [Brief Description]
+# 任务计划：[简要描述]
 
-## Goal
-[One sentence describing the end state]
+## 目标
+[描述最终状态的一句话]
 
-## Current Phase
-Phase 1
+## 当前阶段
+阶段 1
 
-## Phases
+## 阶段规划
 
-### Phase 1: Requirements & Discovery
-- [ ] Understand user intent
-- [ ] Identify constraints
-- [ ] Document in findings.md
-- **Status:** in_progress
+### 阶段 1：需求分析与调研
+- [ ] 理解用户意图
+- [ ] 识别约束条件
+- [ ] 将发现记录在 findings.md 中
+- **状态：** in_progress
 
-### Phase 2: Planning & Structure
-- [ ] Define approach
-- [ ] Create project structure
-- **Status:** pending
+### 阶段 2：方案设计与架构
+- [ ] 定义技术方案
+- [ ] 创建项目结构
+- **状态：** pending
 
-### Phase 3: Implementation
-- [ ] Execute the plan
-- [ ] Write to files before executing
-- **Status:** pending
+### 阶段 3：功能实现
+- [ ] 逐步执行计划
+- [ ] 编写代码
+- **状态：** pending
 
-### Phase 4: Testing & Verification
-- [ ] Verify requirements met
-- [ ] Document test results
-- **Status:** pending
+### 阶段 4：测试与验证
+- [ ] 验证需求已满足
+- [ ] 记录测试结果
+- **状态：** pending
 
-### Phase 5: Delivery
-- [ ] Review outputs
-- [ ] Deliver to user
-- **Status:** pending
+### 阶段 5：交付与回顾
+- [ ] 审查输出
+- [ ] 交付给用户
+- **状态：** pending
 
-## Decisions Made
-| Decision | Rationale |
+## 决策记录
+| 决策 | 理由 |
 |----------|-----------|
 
-## Errors Encountered
-| Error | Resolution |
+## 遇到的错误
+| 错误 | 解决方案 |
 |-------|------------|
 EOF
-    echo "Created task_plan.md"
+    echo "已创建 task_plan.md"
 else
-    echo "task_plan.md already exists, skipping"
+    echo "task_plan.md 已存在，跳过"
 fi
 
-# Create findings.md if it doesn't exist
+# 创建 findings.md
 if [ ! -f "findings.md" ]; then
     cat > findings.md << 'EOF'
-# Findings & Decisions
+# 调研发现与决策 (Findings & Decisions)
 
-## Requirements
--
+## 需求项
+- 
 
-## Research Findings
--
+## 研究发现
+- 
 
-## Technical Decisions
-| Decision | Rationale |
+## 技术决策
+| 决策 | 理由 |
 |----------|-----------|
 
-## Issues Encountered
-| Issue | Resolution |
+## 遇到的问题
+| 问题 | 解决方案 |
 |-------|------------|
 
-## Resources
--
+## 资源链接
+- 
 EOF
-    echo "Created findings.md"
+    echo "已创建 findings.md"
 else
-    echo "findings.md already exists, skipping"
+    echo "findings.md 已存在，跳过"
 fi
 
-# Create progress.md if it doesn't exist
+# 创建 progress.md
 if [ ! -f "progress.md" ]; then
     cat > progress.md << EOF
-# Progress Log
+# 进度日志 (Progress Log)
 
-## Session: $DATE
+## 会话日期：$DATE
 
-### Current Status
-- **Phase:** 1 - Requirements & Discovery
-- **Started:** $DATE
+### 当前状态
+- **阶段：** 1 - 需求分析与调研
+- **开始时间：** $DATE
 
-### Actions Taken
--
+### 采取的行动
+- 
 
-### Test Results
-| Test | Expected | Actual | Status |
+### 测试结果
+| 测试项 | 预期结果 | 实际结果 | 状态 |
 |------|----------|--------|--------|
 
-### Errors
-| Error | Resolution |
-|-------|------------|
+### 错误详志
+| 错误类型 | 解决方案 |
+|-----------|-----------|
 EOF
-    echo "Created progress.md"
+    echo "已创建 progress.md"
 else
-    echo "progress.md already exists, skipping"
+    echo "progress.md 已存在，跳过"
 fi
 
 echo ""
-echo "Planning files initialized!"
-echo "Files: task_plan.md, findings.md, progress.md"
+echo "规划文件初始化完成！"
+echo "已生成：task_plan.md, findings.md, progress.md"

@@ -1,7 +1,7 @@
 ---
 name: planning-with-files
 version: "2.1.2"
-description: Implements Manus-style file-based planning for complex tasks. Creates task_plan.md, findings.md, and progress.md. Use when starting complex multi-step tasks, research projects, or any task requiring >5 tool calls.
+description: 实现 Manus 风格的基于文件的复杂任务规划。创建 task_plan.md, findings.md, 和 progress.md。在开始复杂的、涉及多步分析、研究项目或任何需要 >5 步工具调用的任务时使用。
 user-invocable: true
 allowed-tools:
   - Read
@@ -16,7 +16,7 @@ hooks:
   SessionStart:
     - hooks:
         - type: command
-          command: "echo '[planning-with-files] Ready. Auto-activates for complex tasks, or invoke manually with /planning-with-files'"
+          command: "echo '[planning-with-files] 准备就绪。复杂任务将自动激活，或手动输入 /planning-with-files 启动'"
   PreToolUse:
     - matcher: "Write|Edit|Bash"
       hooks:
@@ -26,186 +26,191 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "echo '[planning-with-files] File updated. If this completes a phase, update task_plan.md status.'"
+          command: "echo '[planning-with-files] 文件已更新。如果此步骤完成了一个阶段，请更新 task_plan.md 的状态。'"
   Stop:
     - hooks:
         - type: command
-          command: "${CLAUDE_PLUGIN_ROOT}/scripts/check-complete.sh"
+          command: "/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/scripts/check-complete.sh"
 ---
 
-# Planning with Files
+# 基于文件的规划 (Planning with Files)
 
-Work like Manus: Use persistent markdown files as your "working memory on disk."
+像 Manus 一样工作：使用持久化的 Markdown 文件作为你的“磁盘上的工作记忆”。
 
-## Important: Where Files Go
+## 重要：文件存放位置
 
-When using this skill:
+使用此技能时：
 
-- **Templates** are stored in the skill directory at `${CLAUDE_PLUGIN_ROOT}/templates/`
-- **Your planning files** (`task_plan.md`, `findings.md`, `progress.md`) should be created in **your project directory** — the folder where you're working
+- **模板** 存储在技能目录中：`/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/templates/`
+- **你的规划文件** (`task_plan.md`, `findings.md`, `progress.md`) 应当创建在**你的项目根目录**中 —— 即你当前工作的文件夹。
 
-| Location | What Goes There |
+| 位置 | 存放内容 |
 |----------|-----------------|
-| Skill directory (`${CLAUDE_PLUGIN_ROOT}/`) | Templates, scripts, reference docs |
-| Your project directory | `task_plan.md`, `findings.md`, `progress.md` |
+| 技能目录 (`/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/`) | 模板、脚本、参考文档 |
+| 你的项目根目录 | `task_plan.md`, `findings.md`, `progress.md` |
 
-This ensures your planning files live alongside your code, not buried in the skill installation folder.
+这确保了你的规划文件与代码并存，而不是埋在技能安装文件夹中。
 
-## Quick Start
+## 快速上手
 
-Before ANY complex task:
+在开始任何复杂任务之前：
 
-1. **Create `task_plan.md`** in your project — Use [templates/task_plan.md](templates/task_plan.md) as reference
-2. **Create `findings.md`** in your project — Use [templates/findings.md](templates/findings.md) as reference
-3. **Create `progress.md`** in your project — Use [templates/progress.md](templates/progress.md) as reference
-4. **Re-read plan before decisions** — Refreshes goals in attention window
-5. **Update after each phase** — Mark complete, log errors
+1. **在项目中创建 `task_plan.md`** —— 参考模板 [templates/task_plan.md](/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/templates/task_plan.md)
+2. **在项目中创建 `findings.md`** —— 参考模板 [templates/findings.md](/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/templates/findings.md)
+3. **在项目中创建 `progress.md`** —— 参考模板 [templates/progress.md](/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/templates/progress.md)
+4. **在做决定前重读计划** —— 刷新注意力窗口中的目标
+5. **每个阶段完成后更新** —— 标记完成状态，记录错误
 
-> **Note:** All three planning files should be created in your current working directory (your project root), not in the skill's installation folder.
+> **注意：** 所有三个规划文件都应创建在你当前的工作目录（项目根目录）中，而不是技能的安装文件夹中。
 
-## The Core Pattern
+## 核心模式
 
 ```
-Context Window = RAM (volatile, limited)
-Filesystem = Disk (persistent, unlimited)
+上下文窗口 = RAM (易失, 有限)
+文件系统 = 磁盘 (持久, 无限)
 
-→ Anything important gets written to disk.
+→ 任何重要的信息都必须写入磁盘。
 ```
 
-## File Purposes
+## 文件用途
 
-| File | Purpose | When to Update |
+| 文件 | 用途 | 何时更新 |
 |------|---------|----------------|
-| `task_plan.md` | Phases, progress, decisions | After each phase |
-| `findings.md` | Research, discoveries | After ANY discovery |
-| `progress.md` | Session log, test results | Throughout session |
+| `task_plan.md` | 阶段、进度、决策 | 每个阶段结束后 |
+| `findings.md` | 研究、发现 | 任何发现后立即记录 |
+| `progress.md` | 会话日志、测试结果 | 贯穿整个会话 |
 
-## Critical Rules
+## 核心规则
 
-### 1. Create Plan First
-Never start a complex task without `task_plan.md`. Non-negotiable.
+### 1. 计划先行
 
-### 2. The 2-Action Rule
-> "After every 2 view/browser/search operations, IMMEDIATELY save key findings to text files."
+没有 `task_plan.md` 绝不开始复杂任务。这是底线。
 
-This prevents visual/multimodal information from being lost.
+### 2. “双动”原则 (The 2-Action Rule)
+>
+> “每进行 2 次 view/browser/search 操作后，必须立即将关键发现保存到文本文件中。”
 
-### 3. Read Before Decide
-Before major decisions, read the plan file. This keeps goals in your attention window.
+这可以防止视觉或多模态信息（浏览器返回内容等）丢失。
 
-### 4. Update After Act
-After completing any phase:
-- Mark phase status: `in_progress` → `complete`
-- Log any errors encountered
-- Note files created/modified
+### 3. 决定前先阅读
 
-### 5. Log ALL Errors
-Every error goes in the plan file. This builds knowledge and prevents repetition.
+在做出重大决策之前，阅读计划文件。这能让目标始终保持在你的注意力窗口内。
+
+### 4. 行动后必更新
+
+完成任何阶段后：
+
+- 标记阶段状态：`in_progress` → `complete`
+- 记录遇到的任何错误
+- 注明创建/修改的文件
+
+### 5. 记录所有错误
+
+每一个错误都要记录在计划文件中。这能积累知识并防止重复犯错。
 
 ```markdown
-## Errors Encountered
-| Error | Attempt | Resolution |
+## 遇到的错误
+| 错误 | 尝试次数 | 解决方案 |
 |-------|---------|------------|
-| FileNotFoundError | 1 | Created default config |
-| API timeout | 2 | Added retry logic |
+| FileNotFoundError | 1 | 创建了默认配置文件 |
+| API timeout | 2 | 增加了重试逻辑 |
 ```
 
-### 6. Never Repeat Failures
+### 6. 绝不重复失败
+
 ```
 if action_failed:
     next_action != same_action
 ```
-Track what you tried. Mutate the approach.
 
-## The 3-Strike Error Protocol
+追踪你尝试过的方法。改变思路，不要死磕。
+
+## “事不过三”错误协议 (3-Strike Error Protocol)
 
 ```
-ATTEMPT 1: Diagnose & Fix
-  → Read error carefully
-  → Identify root cause
-  → Apply targeted fix
+尝试 1: 诊断并修复
+  → 仔细阅读错误信息
+  → 确定根本原因
+  → 应用针对性修复
 
-ATTEMPT 2: Alternative Approach
-  → Same error? Try different method
-  → Different tool? Different library?
-  → NEVER repeat exact same failing action
+尝试 2: 替代方案
+  → 同样的错误？换个方法
+  → 换个工具？换个库？
+  → 绝不重复完全相同的失败操作
 
-ATTEMPT 3: Broader Rethink
-  → Question assumptions
-  → Search for solutions
-  → Consider updating the plan
+尝试 3: 重新思考
+  → 质疑所有前提假设
+  → 寻找其他解决方案
+  → 考虑更新整体计划
 
-AFTER 3 FAILURES: Escalate to User
-  → Explain what you tried
-  → Share the specific error
-  → Ask for guidance
+连续 3 次失败后：升级上报给用户
+  → 详细解释你尝试了什么
+  → 分享具体的错误信息
+  → 寻求用户指导
 ```
 
-## Read vs Write Decision Matrix
+## 读与写决策矩阵
 
-| Situation | Action | Reason |
+| 场景 | 行动 | 原因 |
 |-----------|--------|--------|
-| Just wrote a file | DON'T read | Content still in context |
-| Viewed image/PDF | Write findings NOW | Multimodal → text before lost |
-| Browser returned data | Write to file | Screenshots don't persist |
-| Starting new phase | Read plan/findings | Re-orient if context stale |
-| Error occurred | Read relevant file | Need current state to fix |
-| Resuming after gap | Read all planning files | Recover state |
+| 刚刚写入了一个文件 | 不要读取 | 内容还在上下文窗口中 |
+| 查看了图片/PDF | 立即写入发现 | 多模态信息在丢失前转为文本 |
+| 浏览器返回了数据 | 写入文件 | 网页内容不会持久存在 |
+| 开始新阶段 | 阅读计划/发现 | 防止上下文窗口变旧导致跑偏 |
+| 发生错误 | 阅读相关文件 | 需要当前状态来修复 |
+| 间断后恢复任务 | 阅读所有规划文件 | 找回丢失的状态 |
 
-## The 5-Question Reboot Test
+## 重启自检 5 问 (The 5-Question Reboot Test)
 
-If you can answer these, your context management is solid:
+如果你能回答这些问题，说明你的上下文管理非常稳固：
 
-| Question | Answer Source |
+| 问题 | 答案来源 |
 |----------|---------------|
-| Where am I? | Current phase in task_plan.md |
-| Where am I going? | Remaining phases |
-| What's the goal? | Goal statement in plan |
-| What have I learned? | findings.md |
-| What have I done? | progress.md |
+| 我在哪里？ | `task_plan.md` 中的当前阶段 |
+| 我要去哪？ | 剩余的阶段 |
+| 目标是什么？ | 计划中的目标陈述 |
+| 我学到了什么？ | `findings.md` |
+| 我做了什么？ | `progress.md` |
 
-## When to Use This Pattern
+## 何时使用此模式
 
-**Use for:**
-- Multi-step tasks (3+ steps)
-- Research tasks
-- Building/creating projects
-- Tasks spanning many tool calls
-- Anything requiring organization
+**适用于：**
 
-**Skip for:**
-- Simple questions
-- Single-file edits
-- Quick lookups
+- 多步骤任务 (3 步以上)
+- 研究任务
+- 构建/开发项目
+- 跨越多个工具调用的任务
+- 任何需要组织严密性的工作
 
-## Templates
+**可跳过：**
 
-Copy these templates to start:
+- 简单问题
+- 单文件编辑
+- 快速查询
 
-- [templates/task_plan.md](templates/task_plan.md) — Phase tracking
-- [templates/findings.md](templates/findings.md) — Research storage
-- [templates/progress.md](templates/progress.md) — Session logging
+## 模板
 
-## Scripts
+复制这些模板开始：
 
-Helper scripts for automation:
+- [/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/templates/task_plan.md](templates/task_plan.md) — 阶段追踪
+- [/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/templates/findings.md](templates/findings.md) — 研究存储
+- [/Users/guoshuguang/my-project/antigravity/ctfbot/.agent/skills/planning-with-files/templates/progress.md](templates/progress.md) — 会话日志
 
-- `scripts/init-session.sh` — Initialize all planning files
-- `scripts/check-complete.sh` — Verify all phases complete
+## 脚本
 
-## Advanced Topics
+用于自动化的辅助脚本：
 
-- **Manus Principles:** See [reference.md](reference.md)
-- **Real Examples:** See [examples.md](examples.md)
+- `scripts/init-session.sh` — 初始化所有规划文件
+- `scripts/check-complete.sh` — 验证所有阶段已完成
 
-## Anti-Patterns
+## 反面模式 (Anti-Patterns)
 
-| Don't | Do Instead |
+| 禁止 | 建议 |
 |-------|------------|
-| Use TodoWrite for persistence | Create task_plan.md file |
-| State goals once and forget | Re-read plan before decisions |
-| Hide errors and retry silently | Log errors to plan file |
-| Stuff everything in context | Store large content in files |
-| Start executing immediately | Create plan file FIRST |
-| Repeat failed actions | Track attempts, mutate approach |
-| Create files in skill directory | Create files in your project |
+| 使用 TodoWrite 进行持久化 | 创建 task_plan.md 文件 |
+| 只说一次目标就忘掉 | 决策前重读计划 |
+| 隐藏错误或默默重试 | 将错误记录到计划文件中 |
+| 将所有内容塞进上下文 | 将大数据内容存入文件 |
+| 立即开始执行任务 | 先创建计划文件 |
+| 重复失败的行动 | 追踪尝试，改变方法 |
+| 在技能目录创建文件 | 在你的项目目录创建文件 |
