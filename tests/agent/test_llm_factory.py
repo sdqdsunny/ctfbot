@@ -1,8 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from langchain_anthropic import ChatAnthropic
-from langchain_openai import ChatOpenAI
-from asas_agent.llm.factory import create_llm
+from asas_agent.llm.factory import create_llm, LMStudioLLM
 
 def test_create_llm_anthropic():
     config = {
@@ -21,9 +20,9 @@ def test_create_llm_lmstudio():
         "base_url": "http://localhost:1234/v1"
     }
     llm = create_llm(config)
-    assert isinstance(llm, ChatOpenAI)
+    assert isinstance(llm, LMStudioLLM)
     assert llm.model_name == config["model"]
-    assert str(llm.openai_api_base) == config["base_url"]
+    assert llm.base_url == config["base_url"]
 
 def test_create_llm_invalid_provider():
     config = {
