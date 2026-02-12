@@ -8,10 +8,14 @@ logger = logging.getLogger(__name__)
 class DockerManager:
     """
     负责管理 Fuzzing 容器的生命周期。
+    支持分布式环境 (通过 remote_host)。
     """
-    def __init__(self):
+    def __init__(self, remote_host: Optional[str] = None):
         try:
-            self.client = docker.from_env()
+            if remote_host:
+                self.client = docker.DockerClient(base_url=remote_host)
+            else:
+                self.client = docker.from_env()
         except Exception as e:
             logger.error(f"无法连接到 Docker 守护进程: {e}")
             self.client = None

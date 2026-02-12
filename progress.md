@@ -64,9 +64,17 @@ Table: users
 
 ## Execution Evidence: Horde Interoperability E2E Flow
 
+- **13:40**: Started v6.0: Distributed Swarm & GPU Acceleration integration.
+- **13:50**: Implemented Ray-based `SwarmWorker` and `SwarmOrchestrator` for cross-node compute.
+- **14:00**: Developed `gpu_hashcat_crack` and `gpu_status` tools for hardware-level cryptanalysis.
+- **14:10**: Upgraded `DockerManager` and `ReverseAgent` SOP for distributed parallel execution.
+- **14:20**: Success! Passed E2E test `tests/agent/test_v6_swarm_e2e.py`, demonstrating GPU cracking within the swarm.
+
+## Execution Evidence: v6.0 Swarm/GPU E2E Flow
+
 ```text
-tests/agent/test_horde_e2e_v5.py .                                         [100%]
-✓ E2E Horde Interoperability verified. Cycle: Fuzz -> Angr -> Injection.
+tests/agent/test_v6_swarm_e2e.py .                                         [100%]
+✓ E2E v6.0 Swarm/GPU verification successful. Findings: GPU 成功爆破出密码: 'hello'。
 ```
 
 ```text
