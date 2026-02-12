@@ -66,9 +66,32 @@ v5.0 旨在将系统从“自动化工具使用者”进化为“自主全能安
 - **目标**: 建立容器化 Fuzzing 池，实现自动 Triage（崩溃现场分析）。
 - **收割 SOP**: 发现 Crash 后自动提取寄存器和堆栈状态（GDB-exploitable）并反馈给 Orchestrator。
 
-#### 第三阶段 (v5.5): Swarm 合体 (Deep Interoperability)
+#### 第三阶段 (v5.5): Swarm 合体 (Horde Interoperability)
 
-- **目标**: 实现 **Fuzz ⇨ Angr ⇨ AI** 的闭环协同逻辑。
-- **核心逻辑**: FuzzNode 发现的路径输入自动同步给 Angr，作为初始状态帮助其绕过 Fuzzer 无法克服的复杂分支校验。
+- **目标**: 实现 **Fuzz ⇨ Angr ⇨ AI** 的闭环协同，跨越“逻辑屏障”。
+- **协同机制**:
+  - **Hybrid Corpus Exchange**: 建立共享种子池，FuzzNode 的 Interesting Seeds 实时同步给 SymmNode。
+  - **Stagnation-Driven Dispatch**: 遥测总线监控 Fuzzing 效率，一旦 Coverage 停滞，Orchestrator 自动激活 Angr 处理“爆破点”。
+- **预期效果**: 彻底解决 Fuzzing 处理复杂加密/字符串校验效率低下的痛点。
+
+---
+
+## 🔬 协同演进核心逻辑: 混合反馈环 (Hybrid Feedback Loop)
+
+在 v5.5 中，不同引擎之间不再是孤立竞争，而是建立了“神经连接”：
+
+### 1. 种子流转协议 (Seed Flow)
+
+1. **FuzzNode** 遇到无法跨越的深度逻辑分支。
+2. **Orchestrator** 识别到瓶颈，根据 Coverage 遥测数据筛选出最接近目标的种子。
+3. **SymmNode (Angr)** 接收种子，从对应的程序状态开始符号解算，找出满足约束的输入。
+4. 解算结果作为 **“高级种子”** 回灌给 FuzzNode，瞬间开启新路径。
+
+### 2. 智能感知调度 (Stagnation-Aware Scheduling)
+
+调度器根据以下指标动态调整资源配额：
+
+- **Stagnation Time (停滞时长)**: 超过 120s 无新路径发现，降低 Fuzzer 优先级，激活符号执行。
+- **Constraint Complexity (约束复杂度)**: AI 分析 IDA 代码，提示此处为“高强度校验”，直接预热 Angr 引擎。
 
 ---

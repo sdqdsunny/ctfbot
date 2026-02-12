@@ -15,6 +15,7 @@ class DockerManager:
         except Exception as e:
             logger.error(f"无法连接到 Docker 守护进程: {e}")
             self.client = None
+        self._container_mounts = {} # container_id -> host_binary_dir
 
     def build_fuzzer_image(self, dockerfile_path: str, tag: str = "ctf-asas-fuzzer"):
         """从 Dockerfile 构建 Fuzzer 镜像"""
@@ -57,6 +58,7 @@ class DockerManager:
                 stdin_open=True,
                 cap_add=["SYS_PTRACE"] # 允许调试
             )
+            self._container_mounts[container.id] = binary_dir
             logger.info(f"容器 {container.short_id} 已启动，挂载点: /data/{binary_name}")
             return container
         except Exception as e:
@@ -82,10 +84,37 @@ class DockerManager:
             container = self.client.containers.get(container_id)
             container.stop()
             container.remove()
+            if container_id in self._container_mounts:
+                del self._container_mounts[container_id]
             return True
         except Exception as e:
             logger.warning(f"移除容器失败: {e}")
             return False
+
+    def list_files(self, container_id: str, directory: str) -> List[str]:
+        """列出容器内指定目录的文件"""
+        output = self.exec_command(container_id, f"ls -1 {directory}")
+        if "Error" in output: return []
+        return [f.strip() for f in output.split("\n") if f.strip()]
+
+    def read_file(self, container_id: str, file_path: str) -> Optional[bytes]:
+        """从容器内读取文件内容（Base64 传输以支持二进制）"""
+        import base64
+        cmd = f"base64 {file_path}"
+        output = self.exec_command(container_id, cmd)
+        if "Error" in output or "base64:" in output:
+            return None
+        try:
+            return base64.b64decode(output)
+        except Exception:
+            return None
+
+    def write_file(self, container_id: str, file_path: str, content: bytes):
+        """将内容写入容器内文件"""
+        import base64
+        encoded = base64.b64encode(content).decode('ascii')
+        cmd = f"bash -c 'echo {encoded} | base64 -d > {file_path}'"
+        self.exec_command(container_id, cmd)
 
 _manager = None
 def get_docker_manager():
