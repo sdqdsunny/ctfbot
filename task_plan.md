@@ -35,10 +35,10 @@
 
 ### 阶段 4：v6.0 分布式 Swarm 与 GPU 加速
 
-- [x] 实现 Ray 蜂群节点架构 (`SwarmWorker` & `SwarmOrchestrator`)
-- [x] 实现 GPU 爆破工具 `gpu_hashcat_crack`
-- [x] 升级 `DockerManager` 支持远程集群节点
-- [x] 编写并通过 E2E 测试 `test_v6_swarm_e2e.py`
+- [x] **Swarm Fabric**: 实现基于 Ray 的 `ClusterManager`, `SwarmRouter`, `SwarmWorker` (支持 Capability Discovery & Reputation)
+- [x] **Swarm Fuzzing**: 实现 `SeedJanitor` (全局种子同步) 和 `ConcolicBreaker` (Angr 破局闭环)
+- [x] **Swarm GPU**: 实现 `GPUJobManager` (支持优先级抢占 & 故障漂移) 和 `gpu_hashcat` 适配
+- [x] 编写并通过 E2E 测试 `test_v6_swarm_full_fuzzing_synergy.py` 和 `test_v6_swarm_gpu_fault_tolerance.py`
 - **状态：** complete
 
 ## 决策记录
