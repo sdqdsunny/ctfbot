@@ -1,0 +1,35 @@
+FROM debian:bookworm-slim
+
+# 设置非交互式安装
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 安装基础工具、AFL++、QEMU支持和调试工具
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3 \
+    python3-pip \
+    git \
+    curl \
+    wget \
+    gdb \
+    aflplusplus \
+    qemu-user \
+    qemu-user-static \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 GDB-Exploitable 插件用于自动化崩溃分析
+WORKDIR /opt
+RUN git clone https://github.com/jfoote/exploitable.git \
+    && echo "source /opt/exploitable/exploitable/exploitable.py" >> /root/.gdbinit
+
+# 配置 AFL++ 环境环境变量，允许在 Docker 内平稳运行
+# 忽略 CPU 频率检查（容器内通常无法修改物理宿主机频率）
+ENV AFL_SKIP_CPUFREQ=1
+# 忽略核心转储模式检查
+ENV AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+
+# 准备工作目录
+WORKDIR /data
+
+# 默认进入 bash，方便 Orchestrator 通过 exec 下达指令
+CMD ["/bin/bash"]
