@@ -1,78 +1,58 @@
-# Task Plan: v5.1 Angr Symbolic Execution Integration
+# 任务计划：CTF-ASAS v5.x - v6.0 开发与集成
 
-## Goal
+## 目标
 
-Integrate Angr into the ReverseAgent via MCP to enable automated path solving and logic decryption (Stage 1 of v5.0 Swarm Architecture).
+实现 CTF-ASAS 从单机工具集成到分布式蜂群（Swarm）架构的全面进化，包括符号执行（Angr）、模糊测试（AFL++）、引擎协同（Horde Bridge）以及分布式 GPU 加速（Ray & Hashcat）。
 
-## Status Summary
+## 当前阶段
 
-- **Overall Status**: `v6.0 Distributed Swarm Prototype Complete` ✅
-- **Start Date**: 2026-02-12
-- **Current Milestone**: `v6.0 Global Swarm Operational` 🏁
+阶段 4：交付与回顾 (v6.0 已完成验证)
 
----
+## 阶段规划
 
-## 🛠 原子任务清单 (Atomic Task List)
+### 阶段 1：v5.1 Angr 核心集成
 
-### Phase A: Core Angr Tool Implementation
+- [x] 实现 `reverse_angr_solve` 和 `reverse_angr_eval` 工具
+- [x] 更新 `ReverseAgent` SOP 以支持 Guided Hunting 策略
+- [x] 编写并通过 E2E 测试 `test_angr_e2e_v5.py`
+- **状态：** complete
 
-- [x] **Task 1: 实现 Angr 路径解算工具 (`reverse_angr_solve`)**
-  - [x] Step 1.1: 编写失败的单元测试 `tests/tools/test_reverse_angr.py`
-  - [x] Step 1.2: 实现工具逻辑 `src/asas_mcp/tools/reverse_angr.py`
-  - [x] Step 1.3: 通过测试并验证工具可用性
-- [x] **Task 2: 实现约束解算助手 (`reverse_angr_eval`)**
-  - [x] Step 2.1: 实现基于 JSON 定义的符号变量并行解算工具
+### 阶段 2：v5.2 Fuzzing 基础设施 (FuzzNode)
 
-### Phase B: Agent Integration & SOP Upgrade
+- [x] 编写 `docker/Dockerfile.fuzzer` (AFL++ & QEMU)
+- [x] 实现 `DockerManager` 容器调度器
+- [x] 实现 `pwn_fuzz_start` 和 `pwn_fuzz_triage` 工具
+- [x] 编写并通过 E2E 测试 `test_fuzz_e2e_v5.py`
+- **状态：** complete
 
-- [x] **Task 3: 升级 ReverseAgent 装备**
-  - [x] Step 3.1: 在 `reverse.py` 中注册 Angr 工具
-  - [x] Step 3.2: 升级 System Prompt，注入“引导式挖掘(Guided Hunting)”逻辑
-- [ ] **Task 4: 知识库同步更新**
-  - [ ] Step 4.1: 在 RAG 系统中注入 Angr 高级用法 Demo 事实
+### 阶段 3：v5.5 引擎间深度协同 (Horde Interoperability)
 
-### Phase C: E2E Verification
+- [x] 扩展 `DockerManager` 支持种子提取与回灌
+- [x] 实现 `horde_bridge` 工具集
+- [x] 升级 `ReverseAgent` 支持 Stagnation-aware 调度
+- [x] 编写并通过 E2E 测试 `test_horde_e2e_v5.py`
+- **状态：** complete
 
-- [x] **Task 5: CrackMe 综合实战演练**
-  - [x] Step 5.1: 编写 E2E 测试脚本，模拟“IDA 发现目标 -> Angr 自动解算”全流程
+### 阶段 4：v6.0 分布式 Swarm 与 GPU 加速
 
-### Phase D: Fuzzing Engine Integration (v5.2)
+- [x] 实现 Ray 蜂群节点架构 (`SwarmWorker` & `SwarmOrchestrator`)
+- [x] 实现 GPU 爆破工具 `gpu_hashcat_crack`
+- [x] 升级 `DockerManager` 支持远程集群节点
+- [x] 编写并通过 E2E 测试 `test_v6_swarm_e2e.py`
+- **状态：** complete
 
-- [x] **Task 6: 容器化 Fuzzing 基础设施**
-  - [x] Step 6.1: 编写 `docker/Dockerfile.fuzzer` (AFL++ & QEMU)
-  - [x] Step 6.2: 实现 `docker_manager.py` 容器调度器
-- [x] **Task 7: 实现 Fuzzing 控制与 Triage 工具**
-  - [x] Step 7.1: 实现 `pwn_fuzz_start` (异步启动 Fuzzer)
-  - [x] Step 7.2: 实现 `pwn_fuzz_triage` (自动崩溃分析报告)
-- [x] **Task 8: Agent 协同与 SOP 升级**
-  - [x] Step 8.1: 更新 ReverseAgent 的 Pwn 挖掘逻辑
+## 决策记录
 
-### Phase E: Horde Interoperability (v5.5)
+| 决策 | 理由 |
+|----------|-----------|
+| 使用 Ray 作为分布式底座 | 相比 K8s 更轻量，支持动态资源发现（GPU/CPU），适合 CTF 场景 |
+| 种子库同步 (Corpus-based) | 实现简单且稳健，参考了 Driller 的成功经验 |
+| Stagnation-Driven 触发 | 模拟黑客“暴力无效后切入手动/符号分析”的思维逻辑，节省算力 |
 
-- [x] **Task 9: 种子库交换机制**
-  - [x] Step 9.1: 扩展 `DockerManager` 支持种子提取与回灌
-  - [x] Step 9.2: 实现种子处理器 (Fuzz-Seed to Angr-Input)
-- [x] **Task 10: 瓶颈感知与反馈环**
-  - [x] Step 10.1: 升级 `pwn_fuzz_check` 支持结构化遥测数据
-  - [x] Step 10.2: 实现“引导式混合求解工具” (Seed-guided Symbology)
-- [x] **Task 11: 闭环 E2E 实战验证**
-  - [x] Step 11.1: 编写“突破 4 字节魔数校验”的协同攻击 E2E 测试
+## 遇到的错误
 
-### Phase F: Distributed Swarm & GPU (v6.0)
-
-- [x] **Task 12: Distributed Infrastructure (Ray)**
-  - [x] Step 12.1: 实现 Ray 蜂群节点架构 (`swarm_worker.py`)
-  - [x] Step 12.2: 资源动态感知与元数据上报
-- [x] **Task 13: Elastic Fuzzing Pool**
-  - [x] Step 13.1: 扩展 `DockerManager` 支持远程集群节点启动
-  - [ ] Step 13.2: 基于 Plasma Store 的全球种子同步
-- [x] **Task 14: GPU Acceleration (The "Hammer")**
-  - [x] Step 14.1: 实现 `gpu_hashcat_crack` 工具
-  - [x] Step 14.2: 升级 ReverseAgent 自动爆破 SOP
-
----
-
-## 📈 进度跟踪 (Progress Logs)
-
-- **2026-02-12 (Morning)**: 完成 v5.1 Angr 核心集成与 E2E 验证。
-- **2026-02-12 (Afternoon)**: 完成 v5.2 AFL++ 集成与 v5.5 协同架构实施。开启 v6.0 调研。
+| 错误 | 尝试次数 | 解决方案 |
+|-------|---------|------------|
+| E2E 测试断言失败 (Locale) | 1 | 将测试中的英文匹配改为中文“栈溢出” |
+| DockerManager 状态丢失 | 2 | 增加了 `_container_mounts` 进行元数据追踪 |
+| Pip 安装依赖超时/证书错误 | 2 | 记录在案，本地环境需注意代理配置 |

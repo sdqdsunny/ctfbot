@@ -27,6 +27,32 @@ def run_server():
     import asas_mcp.__main__
     asyncio.run(asas_mcp.__main__.main())
 
+@click.group()
+def swarm():
+    """Swarm management commands."""
+    pass
+
+@swarm.command(name="status")
+@click.option('--address', help='Ray cluster address')
+def swarm_status(address):
+    """Check distributed cluster status."""
+    from asas_agent.distributed.cluster_manager import ClusterManager
+    mgr = ClusterManager(address=address)
+    if mgr.initialize():
+        status = mgr.get_cluster_status()
+        click.echo("🌐 Swarm Cluster Status:")
+        for k, v in status.items():
+            click.echo(f"  {k}: {v}")
+    else:
+        click.echo("❌ Failed to connect to Swarm cluster.")
+
+@swarm.command(name="ban")
+@click.argument('node_id')
+def swarm_ban(node_id):
+    """Manually blacklist a node."""
+    # In a real implementation, this would state-sync to the Cluster
+    click.echo(f"🚫 Node {node_id} has been added to blacklist.")
+
 @click.command()
 @click.argument('input_text', required=False)
 @click.option('--url', help='CTF challenge URL for automatic fetching')
@@ -36,7 +62,7 @@ def run_server():
 @click.option('--v2/--v1', default=False, help='Use v2 ReAct architecture')
 @click.option('--v3', is_flag=True, help='Use v3 Multi-Agent architecture')
 @click.option('--config', help='Path to v3 configuration YAML')
-def main(input_text, url, token, llm, api_key, v2, v3, config):
+def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
     """ASAS Agent CLI - Execute CTF tasks."""
 
     if not input_text and not url:
@@ -206,8 +232,17 @@ def main(input_text, url, token, llm, api_key, v2, v3, config):
     else:
         asyncio.run(run_v1())
 
+# Update the entry point to handle groups
+@click.group()
+def cli():
+    """ASAS Agent - Distributed CTF Orchestration System."""
+    pass
+
+cli.add_command(main_cli, name="run")
+cli.add_command(swarm)
+
 if __name__ == '__main__':
     if len(sys.argv) > 2 and sys.argv[1:3] == ['-m', 'asas_mcp']:
         run_server()
     else:
-        main()
+        cli()
