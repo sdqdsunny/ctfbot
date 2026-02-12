@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "asas-core-mcp"
-version = "1.0.0"
-description = "Core MCP Server for CTF-ASAS"
+version = "0.6.0"
+description = "Autonomous CTF Agent System (Distributed Swarm Preview)"
 authors = ["ASAS Team"]
 packages = [
     { include = "asas_mcp", from = "src" },
