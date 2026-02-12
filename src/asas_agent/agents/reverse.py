@@ -8,6 +8,7 @@ from asas_mcp.tools.ida_tools import (
 from asas_mcp.tools.reverse_angr import reverse_angr_solve, reverse_angr_eval
 from asas_mcp.tools.pwn_fuzz import pwn_fuzz_start, pwn_fuzz_check, pwn_fuzz_triage
 from asas_mcp.tools.horde_bridge import pwn_horde_get_seeds, pwn_horde_inject_seed
+from asas_mcp.tools.gpu_tools import gpu_hashcat_crack, gpu_status
 
 def create_reverse_agent(llm, tools: List[BaseTool]):
     """
@@ -32,12 +33,15 @@ def create_reverse_agent(llm, tools: List[BaseTool]):
         "   - 发现瓶颈时，通过 `pwn_horde_get_seeds` 提取最新种子，并作为 `stdin_prefix_hex` 传入 `reverse_angr_solve` 进行辅助寻路。\n"
         "   - 发现 Crash 后，使用 `pwn_fuzz_triage` 进行崩溃分析。\n"
         "5. **引擎回灌**: 将 Angr 找到的新解通过 `pwn_horde_inject_seed` 回灌给 Fuzzer，帮助其突破当前阶段。\n"
-        "6. **自动化求解**: 使用 `ida_py_eval` 在 IDA 环境内运行脚本，提取内存数据或解密算法。\n"
-        "7. **灵活切换**: 如果 IDA 环境不可用（报错），降级使用 Ghidra 相关工具。\n\n"
+        "6. **硬件加速爆破 (GPU Cracking)**: 如果你在程序中发现硬编码的 Hash (如 MD5/SHA256) 或加密的 Zip/文件：\n"
+        "   - 使用 `gpu_status` 确认算力节点 GPU 可用性。\n"
+        "   - 调用 `gpu_hashcat_crack` 进行高速暴力破解，优先使用 rockyou 等经典字典。\n"
+        "7. **自动化求解**: 使用 `ida_py_eval` 在 IDA 环境内运行脚本，提取内存数据或解密算法。\n"
+        "8. **灵活切换**: 如果 IDA 环境不可用（报错），降级使用 Ghidra 相关工具。\n\n"
         "目标：找到 Flag 并解释漏洞/逻辑点。输出结果必须专业且详实。"
     )
     
-    # Bind All Engines (IDA + Angr + Fuzz + Horde Bridge)
+    # Bind All Engines (IDA + Angr + Fuzz + Horde Bridge + GPU)
     ida_tools = [
         ida_decompile, ida_xrefs_to, ida_py_eval, 
         ida_list_funcs, ida_get_imports, ida_find_regex
@@ -45,8 +49,9 @@ def create_reverse_agent(llm, tools: List[BaseTool]):
     angr_tools = [reverse_angr_solve, reverse_angr_eval]
     fuzz_tools = [pwn_fuzz_start, pwn_fuzz_check, pwn_fuzz_triage]
     horde_tools = [pwn_horde_get_seeds, pwn_horde_inject_seed]
+    gpu_tools = [gpu_hashcat_crack, gpu_status]
     
-    all_tools = tools + ida_tools + angr_tools + fuzz_tools + horde_tools
+    all_tools = tools + ida_tools + angr_tools + fuzz_tools + horde_tools + gpu_tools
     
     graph = create_react_agent_graph(llm, all_tools, system_prompt=system_prompt)
     return graph

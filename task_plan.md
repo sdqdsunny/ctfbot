@@ -6,9 +6,9 @@ Integrate Angr into the ReverseAgent via MCP to enable automated path solving an
 
 ## Status Summary
 
-- **Overall Status**: `v5.5 Horde Interoperability Complete` ✅
+- **Overall Status**: `v6.0 Distributed Swarm Prototype Complete` ✅
 - **Start Date**: 2026-02-12
-- **Current Milestone**: `v5.5 Hybrid Cluster Fully Operational` 🏁
+- **Current Milestone**: `v6.0 Global Swarm Operational` 🏁
 
 ---
 
@@ -58,9 +58,21 @@ Integrate Angr into the ReverseAgent via MCP to enable automated path solving an
 - [x] **Task 11: 闭环 E2E 实战验证**
   - [x] Step 11.1: 编写“突破 4 字节魔数校验”的协同攻击 E2E 测试
 
+### Phase F: Distributed Swarm & GPU (v6.0)
+
+- [x] **Task 12: Distributed Infrastructure (Ray)**
+  - [x] Step 12.1: 实现 Ray 蜂群节点架构 (`swarm_worker.py`)
+  - [x] Step 12.2: 资源动态感知与元数据上报
+- [x] **Task 13: Elastic Fuzzing Pool**
+  - [x] Step 13.1: 扩展 `DockerManager` 支持远程集群节点启动
+  - [ ] Step 13.2: 基于 Plasma Store 的全球种子同步
+- [x] **Task 14: GPU Acceleration (The "Hammer")**
+  - [x] Step 14.1: 实现 `gpu_hashcat_crack` 工具
+  - [x] Step 14.2: 升级 ReverseAgent 自动爆破 SOP
+
 ---
 
 ## 📈 进度跟踪 (Progress Logs)
 
 - **2026-02-12 (Morning)**: 完成 v5.1 Angr 核心集成与 E2E 验证。
-- **2026-02-12 (Afternoon)**: 完成 v5.2 调研，确立容器化 Fuzzing 方案，开启原子任务分解。
+- **2026-02-12 (Afternoon)**: 完成 v5.2 AFL++ 集成与 v5.5 协同架构实施。开启 v6.0 调研。
