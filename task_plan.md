@@ -1,84 +1,44 @@
-# Task Plan: CLI Recovery & Fact Store Enhancement
+# Task Plan: SQL Injection Verification & End-to-End Test
 
-<!-- 
-  内容：这是你整个任务的路线图。将其视为你的“磁盘工作记忆”。
-  原因：在进行 50 次以上的工具调用后，你可能会忘记最初的目标。此文件可保持目标的新鲜感。
-  时间：首先创建此文件，然后再开始任何工作。每个阶段完成后进行更新。
--->
+## Goal
 
-## 目标 (Goal)
-<!-- 一句话描述你想要实现的目标 -->
-补全 CLI (v1/v2) 基础功能，并增强子 Agent 与 Orchestrator 之间的结构化事实共享机制 (Fact Store)。
+Verify the ASAS v3 Multi-Agent architecture can successfully solve a local SQL injection challenge (sqli-labs Less-1) using a local LLM (LM Studio) and a Kali Linux VM.
 
-## 阶段 1：CLI 功能恢复 (Option A)
+## Status Summary
 
-- [x] 实现 `run_v2()` 的思考过程与工具调用输出逻辑
-- [x] 实现 `run_v1()` 的传统链式工作流逻辑
-- [x] 验证 `ctfbot --v1` 和 `ctfbot --v2` 命令的可用性
-- **状态：** complete
+- **Overall Status**: `Complete` 🏁
+- **Start Date**: 2026-02-11
+- **Current Milestone**: `v4.5 IDA Pro Integration Complete` 🏁
+- **Latest Completion**: 2026-02-12
 
-## 阶段 2：结构化事实仓库设计与实现 (Option B)
+## Phases
 
-- [x] 头脑风暴：定义 `FactStore` 的数据结构 (已确定为分类结构化 B 方案)
-- [x] 在 `AgentState` 中更新 `fact_store` 字段 (`src/asas_agent/graph/state.py`)
-- [x] 修改 `AgentResult` 以包含 `extracted_facts` (`src/asas_agent/graph/dispatcher.py`)
-- [x] 更新 `dispatcher.py` 中的解析逻辑，实现事实的自动合并 (Merge logic)
-- [x] 更新各子代理（Crypto, Web, Recon）的系统提示词，引导其主动汇报事实
-- [x] 更新 Orchestrator 工作流，实现事实到 Context 的动态注入
-- **状态：** complete
+### 1. Environment Debugging & Connectivity (Done)
 
-## 阶段 3：集成测试与验证
+- [x] Test local connectivity to 127.0.0.1:81.
+- [x] Identify correct network interface for Kali VM access (10.255.1.2).
+- [x] Resolve LLM authentication issues (ChatAnthropic API key validation with LM Studio).
 
-- [x] 编写测试脚本模拟多步解题中的事实传递 (已完成 `test_fact_store.py`)
-- [x] 验证跨 Agent 的事实共享行为 (已通过 Mock 流程模拟 Port 81 发现验证)
-- **状态：** complete
+### 2. Execution & Orchestration (Done)
 
-## 阶段 4：本地大模型集成与增强
+- [x] Dispatch task from Orchestrator to WebAgent using v3 framework.
+- [x] Execute `kali_sqlmap_tool` within the Kali VM targeting the host container.
+- [x] Successfully retrieve database banner.
 
-- [x] 配置本地 LLM (LM Studio) 集成环境
-- [x] 实现 `LMStudioLLM` 原生适配器，解决 502 Bad Gateway 问题
-- [x] 实现 指令桥接解析逻辑 (Prompt-based Tool Selection)，解决 Schema 兼容性问题
-- [x] 优化工具适配器，放宽可选参数校验 (Any/Empty String Default)
-- [x] 实证全链路本地化运行：Orchestrator 正确作出决策并调度 MCP 工具
-- **状态：** complete
+### 3. Data Extraction & Final Verification (Done)
 
-## 阶段 5：稳定性增强与 Bug 修复
+- [x] Manually guide the agent to target the `security` database.
+- [x] Dump the `users` table successfully.
+- [x] Capture and verify the extracted data (13 users).
 
-- [x] 修复 `sqli-labs` 测试中遇到的 `'list' object has no attribute 'items'` 异常
-- [x] 在 `dispatcher.py` 和 `workflow.py` 中增加鲁棒的类型检查与防御性编程
-- [ ] 验证 Web Agent 在 `sqli-labs` 环境下的全链路运行 (Less-1)
-- **状态：** in_progress
+### 4. v4.5 IDA Pro Integration (Done)
 
-## 阶段 6：IDA Pro 集成 (v4.5)
+- [x] Expand IDA toolset (`list_funcs`, `get_imports`, `find_regex`).
+- [x] Upgrade `ReverseAgent` SOP and Prompt.
+- [x] Fix Orchestrator graph robustness (`KeyError` and `AIMessage` import).
+- [x] Verify multi-agent E2E flow with IDA tools via `test_ida_e2e_v3.py`.
 
-- [ ] 实现 `IdaClient` 的基础通信协议 (SSE/HTTP)
-- [ ] 完善 `ida_tools.py` 中的 MCP 工具注册与参数校验
-- [ ] 升级 `ReverseAgent` 提示词，注入 IDA 专业操作 SOP
-- [ ] 验证 IDA Headless 分析流程
-- **状态：** planned
+## Decisions & Changes
 
-## 关键待办问题 (Critical Todos)
-<!-- 
-  内容：必须解决的关键代码点、潜在错误或不确定性。
-  原因：防止在多步操作中遗漏细节。
--->
-- [ ] 确保 v1 的 `AgentNodes` 调用与当前 `MCPToolClient` 兼容
-- [ ] 设计事实的冲突处理逻辑（如果不同 Agent 发现矛盾的事实）
-
-## 错误详志 (Error Log)
-<!-- 
-  内容：记录你遇到的阻碍性错误及其解决方法。类似于“经验教训”。
-  原因：如果你再次遇到相同的错误，可以快速修复它。
--->
-| 错误 | 原因 | 解决方案 |
-|-------|--------|------------|
-| 'list' has no items | sub-agent astream 可能返回非字典事件 | 增加 isinstance(event, dict) 校验与回滚逻辑 |
-
-## 进度记录 (Progress Tracker)
-<!-- 
-  内容：已完成工作的简要时间线。
-  原因：向用户展示进展并保持动力。
--->
-- [2026-02-11] 任务启动：CLI 恢复与事实仓库增强。
-- [2026-02-11] 本地化突破：成功实现 LM Studio 高性能集成，解决 SDK 兼容性及工具调用冲突。
-- [2026-02-11] 快速响应：修复了 SQLi Agent 测试中的 'list' 迭代异常，增强系统鲁棒性。
+- **Local LLM Adaption**: Modified `orchestrator_node` in `workflow.py` to add raw LLM output logging for easier debugging of tool-call parsing in local models.
+- **Network Routing**: Used host-machine IP `10.255.1.2` instead of `localhost` to allow Kali VM to reach the Docker container.
