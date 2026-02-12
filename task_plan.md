@@ -1,44 +1,55 @@
-# Task Plan: SQL Injection Verification & End-to-End Test
+# Task Plan: v5.1 Angr Symbolic Execution Integration
 
 ## Goal
 
-Verify the ASAS v3 Multi-Agent architecture can successfully solve a local SQL injection challenge (sqli-labs Less-1) using a local LLM (LM Studio) and a Kali Linux VM.
+Integrate Angr into the ReverseAgent via MCP to enable automated path solving and logic decryption (Stage 1 of v5.0 Swarm Architecture).
 
 ## Status Summary
 
-- **Overall Status**: `Complete` 🏁
-- **Start Date**: 2026-02-11
-- **Current Milestone**: `v4.5 IDA Pro Integration Complete` 🏁
-- **Latest Completion**: 2026-02-12
+- **Overall Status**: `v5.2 Swarm Fuzzing Complete` ✅
+- **Start Date**: 2026-02-12
+- **Current Milestone**: `v5.2 FuzzNode Integrated` 🏁
 
-## Phases
+---
 
-### 1. Environment Debugging & Connectivity (Done)
+## 🛠 原子任务清单 (Atomic Task List)
 
-- [x] Test local connectivity to 127.0.0.1:81.
-- [x] Identify correct network interface for Kali VM access (10.255.1.2).
-- [x] Resolve LLM authentication issues (ChatAnthropic API key validation with LM Studio).
+### Phase A: Core Angr Tool Implementation
 
-### 2. Execution & Orchestration (Done)
+- [x] **Task 1: 实现 Angr 路径解算工具 (`reverse_angr_solve`)**
+  - [x] Step 1.1: 编写失败的单元测试 `tests/tools/test_reverse_angr.py`
+  - [x] Step 1.2: 实现工具逻辑 `src/asas_mcp/tools/reverse_angr.py`
+  - [x] Step 1.3: 通过测试并验证工具可用性
+- [x] **Task 2: 实现约束解算助手 (`reverse_angr_eval`)**
+  - [x] Step 2.1: 实现基于 JSON 定义的符号变量并行解算工具
 
-- [x] Dispatch task from Orchestrator to WebAgent using v3 framework.
-- [x] Execute `kali_sqlmap_tool` within the Kali VM targeting the host container.
-- [x] Successfully retrieve database banner.
+### Phase B: Agent Integration & SOP Upgrade
 
-### 3. Data Extraction & Final Verification (Done)
+- [x] **Task 3: 升级 ReverseAgent 装备**
+  - [x] Step 3.1: 在 `reverse.py` 中注册 Angr 工具
+  - [x] Step 3.2: 升级 System Prompt，注入“引导式挖掘(Guided Hunting)”逻辑
+- [ ] **Task 4: 知识库同步更新**
+  - [ ] Step 4.1: 在 RAG 系统中注入 Angr 高级用法 Demo 事实
 
-- [x] Manually guide the agent to target the `security` database.
-- [x] Dump the `users` table successfully.
-- [x] Capture and verify the extracted data (13 users).
+### Phase C: E2E Verification
 
-### 4. v4.5 IDA Pro Integration (Done)
+- [x] **Task 5: CrackMe 综合实战演练**
+  - [x] Step 5.1: 编写 E2E 测试脚本，模拟“IDA 发现目标 -> Angr 自动解算”全流程
 
-- [x] Expand IDA toolset (`list_funcs`, `get_imports`, `find_regex`).
-- [x] Upgrade `ReverseAgent` SOP and Prompt.
-- [x] Fix Orchestrator graph robustness (`KeyError` and `AIMessage` import).
-- [x] Verify multi-agent E2E flow with IDA tools via `test_ida_e2e_v3.py`.
+### Phase D: Fuzzing Engine Integration (v5.2)
 
-## Decisions & Changes
+- [x] **Task 6: 容器化 Fuzzing 基础设施**
+  - [x] Step 6.1: 编写 `docker/Dockerfile.fuzzer` (AFL++ & QEMU)
+  - [x] Step 6.2: 实现 `docker_manager.py` 容器调度器
+- [x] **Task 7: 实现 Fuzzing 控制与 Triage 工具**
+  - [x] Step 7.1: 实现 `pwn_fuzz_start` (异步启动 Fuzzer)
+  - [x] Step 7.2: 实现 `pwn_fuzz_triage` (自动崩溃分析报告)
+- [x] **Task 8: Agent 协同与 SOP 升级**
+  - [x] Step 8.1: 更新 ReverseAgent 的 Pwn 挖掘逻辑
 
-- **Local LLM Adaption**: Modified `orchestrator_node` in `workflow.py` to add raw LLM output logging for easier debugging of tool-call parsing in local models.
-- **Network Routing**: Used host-machine IP `10.255.1.2` instead of `localhost` to allow Kali VM to reach the Docker container.
+---
+
+## 📈 进度跟踪 (Progress Logs)
+
+- **2026-02-12 (Morning)**: 完成 v5.1 Angr 核心集成与 E2E 验证。
+- **2026-02-12 (Afternoon)**: 完成 v5.2 调研，确立容器化 Fuzzing 方案，开启原子任务分解。
