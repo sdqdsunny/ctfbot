@@ -57,9 +57,16 @@ Table: users
 
 ## Execution Evidence: Swarm Fuzzing E2E Flow
 
+- **13:00**: Started v5.5: Horde Interoperability design and implementation.
+- **13:10**: Extended `DockerManager` and added `horde_bridge` tools for bidirectional seed exchange.
+- **13:20**: Upgraded `ReverseAgent` SOP for Stagnation-aware hybrid solving.
+- **13:30**: Success! Passed E2E test `tests/agent/test_horde_e2e_v5.py`, demonstrating the complete Hybrid Cluster loop.
+
+## Execution Evidence: Horde Interoperability E2E Flow
+
 ```text
-tests/agent/test_fuzz_e2e_v5.py .                                          [100%]
-✓ E2E Fuzzing integration verified. Findings: 分析显示这是一个典型的栈溢出漏洞。可以编写 Exploit 获取 Flag。
+tests/agent/test_horde_e2e_v5.py .                                         [100%]
+✓ E2E Horde Interoperability verified. Cycle: Fuzz -> Angr -> Injection.
 ```
 
 ```text

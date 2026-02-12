@@ -5,14 +5,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 @tool
-async def reverse_angr_solve(binary_path: str, find_addr: str, avoid_addrs: Optional[List[str]] = None) -> str:
+async def reverse_angr_solve(binary_path: str, find_addr: str, avoid_addrs: Optional[List[str]] = None, stdin_prefix_hex: Optional[str] = None) -> str:
     """
     使用 Angr 符号执行查找二进制文件中的特定路径（目标地址）。
+    支持从已有的输入前缀（种子）开始继续探索。
     
     Args:
         binary_path: 需要分析的二进制文件路径。
         find_addr: 目标地址（十六进制字符串，如 '0x401234'）。
         avoid_addrs: 需要避开的地址列表（可选）。
+        stdin_prefix_hex: Stdin 初始前缀的十六进制字符串（可选，用于协同 Fuzzing）。
         
     Returns:
         解算出的输入内容（Stdin）或错误信息。
@@ -28,6 +30,12 @@ async def reverse_angr_solve(binary_path: str, find_addr: str, avoid_addrs: Opti
         
         # 2. 从入口点开始建立初始状态
         state = project.factory.entry_state()
+        
+        # 如果提供了初始前缀，将其注入 Stdin
+        if stdin_prefix_hex:
+            prefix_bytes = bytes.fromhex(stdin_prefix_hex.replace('0x', ''))
+            state.posix.stdin.content.append((prefix_bytes, len(prefix_bytes)))
+            print(f"DEBUG [Angr]: Injected {len(prefix_bytes)} bytes of prefix from Fuzzer seeds.")
         
         # 3. 创建仿真管理器
         simgr = project.factory.simgr(state)

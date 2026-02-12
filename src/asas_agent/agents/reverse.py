@@ -7,6 +7,7 @@ from asas_mcp.tools.ida_tools import (
 )
 from asas_mcp.tools.reverse_angr import reverse_angr_solve, reverse_angr_eval
 from asas_mcp.tools.pwn_fuzz import pwn_fuzz_start, pwn_fuzz_check, pwn_fuzz_triage
+from asas_mcp.tools.horde_bridge import pwn_horde_get_seeds, pwn_horde_inject_seed
 
 def create_reverse_agent(llm, tools: List[BaseTool]):
     """
@@ -27,21 +28,25 @@ def create_reverse_agent(llm, tools: List[BaseTool]):
         "3. **方程破解**: 如果遇到复杂的数学方程或校验算法，将其简化并使用 `reverse_angr_eval` 进行离线求解。\n"
         "4. **漏洞挖掘 (Swarm Fuzzing)**: 如果二进制文件逻辑过于复杂或疑似存在内存破坏漏洞（Pwn）：\n"
         "   - 使用 `pwn_fuzz_start` 启动后台分布式 Fuzzer。\n"
-        "   - 定期使用 `pwn_fuzz_check` 观察分析进度。\n"
-        "   - 发现 Crash 后，立即调用 `pwn_fuzz_triage` 获取自动化分析报告，定位溢出位置与原理。\n"
-        "5. **自动化求解**: 使用 `ida_py_eval` 在 IDA 环境内运行脚本，提取内存数据或解密算法。\n"
-        "6. **灵活切换**: 如果 IDA 环境不可用（报错），降级使用 Ghidra 相关工具。\n\n"
+        "   - 使用 `pwn_fuzz_check` 定期观察进度。如果 `total_paths` 长时间不增加（Stagnation），则执行协同。 \n"
+        "   - 发现瓶颈时，通过 `pwn_horde_get_seeds` 提取最新种子，并作为 `stdin_prefix_hex` 传入 `reverse_angr_solve` 进行辅助寻路。\n"
+        "   - 发现 Crash 后，使用 `pwn_fuzz_triage` 进行崩溃分析。\n"
+        "5. **引擎回灌**: 将 Angr 找到的新解通过 `pwn_horde_inject_seed` 回灌给 Fuzzer，帮助其突破当前阶段。\n"
+        "6. **自动化求解**: 使用 `ida_py_eval` 在 IDA 环境内运行脚本，提取内存数据或解密算法。\n"
+        "7. **灵活切换**: 如果 IDA 环境不可用（报错），降级使用 Ghidra 相关工具。\n\n"
         "目标：找到 Flag 并解释漏洞/逻辑点。输出结果必须专业且详实。"
     )
     
-    # Bind IDA + Angr + Fuzz tools + existing tools
+    # Bind All Engines (IDA + Angr + Fuzz + Horde Bridge)
     ida_tools = [
         ida_decompile, ida_xrefs_to, ida_py_eval, 
         ida_list_funcs, ida_get_imports, ida_find_regex
     ]
     angr_tools = [reverse_angr_solve, reverse_angr_eval]
     fuzz_tools = [pwn_fuzz_start, pwn_fuzz_check, pwn_fuzz_triage]
-    all_tools = tools + ida_tools + angr_tools + fuzz_tools
+    horde_tools = [pwn_horde_get_seeds, pwn_horde_inject_seed]
+    
+    all_tools = tools + ida_tools + angr_tools + fuzz_tools + horde_tools
     
     graph = create_react_agent_graph(llm, all_tools, system_prompt=system_prompt)
     return graph

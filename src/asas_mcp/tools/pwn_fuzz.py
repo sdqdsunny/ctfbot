@@ -48,15 +48,35 @@ async def pwn_fuzz_start(binary_path: str, duration_sec: int = 600) -> str:
 @tool
 async def pwn_fuzz_check(container_id: str) -> str:
     """
-    检查 Fuzzing 任务的进度（Coverage 和 Crashes）。
+    检查 Fuzzing 任务的实时遥测数据（Coverage 和 Crashes）。
     
     Args:
         container_id: Fuzzer 容器的 ID。
     """
+    import re
     dm = get_docker_manager()
-    # 使用 afl-whatsup 检查输出目录
-    stats = dm.exec_command(container_id, "afl-whatsup /data/out")
-    return stats
+    raw_stats = dm.exec_command(container_id, "afl-whatsup /data/out")
+    
+    # 简单的正则解析
+    data = {
+        "raw": raw_stats,
+        "fuzzers": [],
+        "total_paths": 0,
+        "unique_crashes": 0,
+        "execs_per_sec": 0
+    }
+    
+    # 提取总数 (afl-whatsup 汇总行)
+    # 例子: total paths 30, unique crashes 0
+    paths_match = re.search(r"total paths (\d+)", raw_stats)
+    crashes_match = re.search(r"unique crashes (\d+)", raw_stats)
+    execs_match = re.search(r"speed (\d+) execs/sec", raw_stats)
+    
+    if paths_match: data["total_paths"] = int(paths_match.group(1))
+    if crashes_match: data["unique_crashes"] = int(crashes_match.group(1))
+    if execs_match: data["execs_per_sec"] = int(execs_match.group(1))
+    
+    return json.dumps(data)
 
 @tool
 async def pwn_fuzz_triage(container_id: str, crash_filename: str) -> str:
