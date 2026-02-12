@@ -65,3 +65,50 @@ async def ida_py_eval(code: str) -> str:
         return str(result)
     except Exception as e:
         return f"Error executing Python script: {e}"
+@tool
+async def ida_list_funcs() -> str:
+    """
+    List all functions discovered in the binary by IDA Pro.
+    
+    Returns:
+        A list of function names and addresses.
+    """
+    client = get_ida_client()
+    try:
+        result = await client.execute_tool("list_funcs", {})
+        return str(result)
+    except Exception as e:
+        return f"Error listing functions: {e}"
+
+@tool
+async def ida_get_imports() -> str:
+    """
+    Get the import table of the binary.
+    
+    Returns:
+        A list of imported modules and functions.
+    """
+    client = get_ida_client()
+    try:
+        result = await client.execute_tool("get_imports", {})
+        return str(result)
+    except Exception as e:
+        return f"Error fetching imports: {e}"
+
+@tool
+async def ida_find_regex(pattern: str) -> str:
+    """
+    Search for strings or byte patterns in the binary using regex.
+    
+    Args:
+        pattern: The regex pattern to search for.
+        
+    Returns:
+        A list of matches with their addresses.
+    """
+    client = get_ida_client()
+    try:
+        result = await client.execute_tool("find_regex", {"pattern": pattern})
+        return str(result)
+    except Exception as e:
+        return f"Error searching for regex '{pattern}': {e}"

@@ -3,7 +3,7 @@ from langgraph.prebuilt import ToolNode
 from .state import AgentState
 from typing import List, Dict, Any
 from langchain_core.tools import BaseTool
-from langchain_core.messages import SystemMessage, ToolMessage, HumanMessage
+from langchain_core.messages import SystemMessage, ToolMessage, HumanMessage, AIMessage
 import json
 import uuid
 
@@ -364,25 +364,29 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         messages = state["messages"]
         last_message = messages[-1]
         
-        # If it's a tool output (ToolMessage)
-        if hasattr(last_message, 'tool_call_id'):
+        # If it's an AI message with tool calls, go to tools
+        if isinstance(last_message, AIMessage) and last_message.tool_calls:
+            print(f"DEBUG [should_continue]: AIMessage with tool_calls -> 'tools'")
+            return "tools"
+            
+        # If it's a tool output, go back to orchestrator (or reflection)
+        if isinstance(last_message, ToolMessage):
             # Check for failure keywords in tool output
             content = str(last_message.content).lower()
             if "error" in content or "failed" in content or "indeterminate" in content:
                 # Check retry limit
                 retries = state.get("retry_count", 0)
                 if retries < 3:
+                    print(f"DEBUG [should_continue]: ToolMessage error -> 'reflection'")
                     return "reflection"
+            print(f"DEBUG [should_continue]: ToolMessage success -> 'orchestrator'")
             return "orchestrator"
             
-        # If it's an AI message with tool calls
-        if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-            return "tools"
-            
+        print(f"DEBUG [should_continue]: Fallthrough -> END")
         return END
         
-    workflow.add_conditional_edges("orchestrator", should_continue, ["tools", END])
-    workflow.add_conditional_edges("tools", should_continue, ["orchestrator", "reflection"])
+    workflow.add_conditional_edges("orchestrator", should_continue, ["tools", "orchestrator", END])
+    workflow.add_conditional_edges("tools", should_continue, ["orchestrator", "reflection", END])
     workflow.add_edge("reflection", "orchestrator")
     
     return workflow.compile()
