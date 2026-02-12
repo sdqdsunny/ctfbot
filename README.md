@@ -1,19 +1,39 @@
 # CTFBOT (Capture The Flag - Automated Solving Agent System)
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.6.0-orange.svg)](pyproject.toml)
 [![Python](https://img.shields.io/badge/python-3.10+-yellow.svg)](https://www.python.org/)
 [![MCP](https://img.shields.io/badge/protocol-MCP-green.svg)](https://modelcontextprotocol.io/)
+[![Ray](https://img.shields.io/badge/Distributed-Ray-blue.svg)](https://docs.ray.io/)
 
-CTFBOT 是一款基于大语言模型（LLM）多智能体协作的自动化 CTF（Capture The Flag）解题系统。它利用 **Model Context Protocol (MCP)** 协议，将复杂解题意图与底层专业工具解耦，旨在实现从“题目理解”到“Flag 获取”的全自动化闭环。
+CTFBOT 是一款基于大语言模型（LLM）多智能体协作的自动化 CTF（Capture The Flag）解题系统。它利用 **Model Context Protocol (MCP)** 协议，将复杂解题意图与底层专业工具解耦，并支持 **Ray 分布式集群 (Swarm)**，实现从“题目理解”到“Fuzzing/爆破”的全自动化闭环。
 
-## 🌟 核心特性
+> **⚠️ Alpha Preview**: 当前版本 **v0.6.0** 为分布式架构预览版，核心功能完备但 API 可能发生变化。
 
-- **Agent-Native 架构**: 基于 LangGraph 构建任务编排层，模拟安全专家的逻辑闭环（理解 -> 规划 -> 执行 -> 反馈）。
-- **工具链解耦 (MCP)**: 所有底层能力（扫描、编码、逆向、取证）均作为标准 MCP Tool 调用。
-- **Kali Linux 虚拟机直连**: 通过 `vmrun` 驱动桥接 Kali VM，实现“上帝模式”指令注入，支持专业级安全工具链。
-- **隔离沙箱**: 支持 Docker 容器运行 Python/Bash 脚本，具备资源限制与网络隔离。
-- **深度逆向**: 集成 Ghidra Docker 化服务，支持全量 C 伪代码提取与逻辑分析。
-- **本地记忆层 (RAG)**: 集成 ChromaDB 知识库，支持解题经验沉淀与 WP 检索。
+## 🌟 核心特性 (v0.6.0 Swarm Edition)
+
+- **🧠 智能体集群 (Swarm Fabric)**: 基于 Ray 的分布式架构，支持本地/远程节点混合组网，具备能力自动发现与信誉评分机制。
+- **🐝 协同 Fuzzing (Synergic Fuzzing)**: 支持分布式 AFL++ 并行 Fuzzing，具备全局种子同步 (Seed Sync) 与 **Angr 符号执行破局** 能力。
+- **💥 弹性 GPU 调度 (Elastic GPU)**: 实现了支持优先级抢占 (Preemption) 和故障漂移 (Failover) 的分布式 Hashcat 任务调度。
+- **Agent-Native 架构**: 基于 LangGraph 构建任务编排层，模拟安全专家的逻辑闭环。
+- **深度逆向**: 集成 Ghidra/Angr/IDA Pro (Headless)，支持全量伪代码提取与求解。
+- **Kali Linux 虚拟机直连**: 通过 `vmrun` 驱动桥接 Kali VM，支持专业级安全工具链。
+
+... (保留原有架构图与安装说明) ...
+
+## 📅 路线图 (Roadmap)
+
+我们正在对版本号进行标准化，当前处于 **v0.6.0 (Alpha)** 阶段。
+
+- [x] **v0.1 ~ v0.4**: 基础 Agent、MCP 工具链、RAG 记忆、Docker/Kali 集成。
+- [x] **v0.5**: 逆向引擎增强 (Angr/Ghidra)。
+- [x] **v0.6.0 (Current)**: **分布式 Swarm 架构** (Ray Cluster, Fuzzing Synergy, GPU Scheduler)。
+- [ ] **v0.7.x**: 稳定性增强、错误处理与日志优化 (Coming Soon)。
+- [ ] **v0.8.x**: 真实靶场 (Real-World CTF) 复现与调优。
+- [ ] **v1.0.0**: 正式生产就绪版本。
+
+## 📄 开源协议
+
+Apache License 2.0
 
 ## 🏗️ 系统架构
 
@@ -154,16 +174,3 @@ python -m src.asas_agent --llm claude "请扫描目标 IP 192.168.1.1 并识别�
 | `reverse_ghidra` | 自动化反编译二进制文件为 C 伪代码 | Docker |
 | `crypto_decode` | Base64/Hex/Morse 等万能解码 | Native |
 | `memory_query` | RAG 记忆层：检索解题技巧与历史事实 | ChromaDB |
-
-## 📅 路线图 (Roadmap)
-
-- [x] **v1.0**: MCP 协议打通，基础 Agent 解题闭环。
-- [x] **v2.0**: Ghidra 集成、自动化平台对接 (CTFd)。
-- [x] **v3.0**: 任务树与回溯机制 (Backtracking)、Docker 沙箱。
-- [x] **v4.0**: Kali Linux 虚拟机集成，专业级工具链导入。
-- [ ] **v4.5**: 智能 IDA Pro 助手集成。
-- [ ] **v5.0**: 分布式协同渗透与大规模自动化解题。
-
-## 📄 开源协议
-
-Apache License 2.0
