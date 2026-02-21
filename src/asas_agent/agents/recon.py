@@ -12,7 +12,10 @@ def create_recon_agent(llm, tools: List[BaseTool]):
         "1. 对目标进行初始信息收集。\n"
         "2. 使用 `kali_nmap` 探测端口与服务。\n"
         "3. 使用 `web_extract_links` 或 `dir_scan` 发现潜在的 Web 路径。\n"
-        "4. 汇报发现的攻击面，为其他专业代理提供线索。"
+        "4. 汇报发现的攻击面，为其他专业代理提供线索。\n\n"
+        "**强制格式要求**：\n"
+        "在任务结束时，必须以如下格式汇总关键发现：\n"
+        "FACTS: {\"ports\": [80, 81], \"services\": {\"81\": \"http\"}, \"web_paths\": [\"/admin\"]}"
     )
     
     graph = create_react_agent_graph(llm, tools, system_prompt=system_prompt)

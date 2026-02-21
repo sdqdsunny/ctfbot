@@ -73,6 +73,27 @@ class KaliExecutor:
         except Exception as e:
             return f"Execution error: {str(e)}"
 
+    def copy_to_guest(self, host_path: str, guest_path: str) -> str:
+        """Copies a file from the host machine to the Kali VM."""
+        # Note: guest_path should be a full path or directory
+        print(f"DEBUG [KaliExecutor] Copying file {host_path} to {guest_path}")
+        copy_cmd = [
+            self.vmrun_path,
+            "-gu", self.user,
+            "-gp", self.password,
+            "copyFileFromHostToGuest",
+            self.vmx_path,
+            host_path,
+            guest_path
+        ]
+        try:
+            res = subprocess.run(copy_cmd, capture_output=True, text=True)
+            if res.returncode != 0:
+                return f"Error copying file to guest: {res.stderr}"
+            return f"Success: File uploaded to {guest_path}"
+        except Exception as e:
+            return f"Copy execution error: {str(e)}"
+
 # Singleton or shared instance
 _executor = None
 
@@ -92,6 +113,26 @@ def ensure_package(package_name: str):
     if not check or "not found" in check.lower():
         logging.info(f"Installing {package_name} in Kali VM...")
         executor.execute(f"sudo apt-get update && sudo apt-get install -y {package_name}")
+
+def upload_file(host_path: str, guest_path: str) -> str:
+    """[Kali] 将本地物理机(宿主机)的文件上传到 Kali 虚拟机中以供分析"""
+    executor = get_executor()
+    if not os.path.exists(host_path):
+        return f"Error: Host file {host_path} does not exist."
+    if guest_path.endswith("/"):
+        guest_path = guest_path + os.path.basename(host_path)
+    return executor.copy_to_guest(host_path, guest_path)
+
+def file_cmd(file_path_guest: str) -> str:
+    """[Kali] 使用 file 命令判断文件架构和类型"""
+    executor = get_executor()
+    return executor.execute(f"file '{file_path_guest}'")
+
+def checksec(file_path_guest: str) -> str:
+    """[Kali] 使用 checksec 工具检查二进制文件的安全编译选项 (Pwn必备)"""
+    # ensure_package("checksec") # checksec usually part of pwntools or can be installed
+    executor = get_executor()
+    return executor.execute(f"checksec '{file_path_guest}'")
 
 def sqlmap(url: str, args: str = "--batch --banner") -> str:
     ensure_package("sqlmap")

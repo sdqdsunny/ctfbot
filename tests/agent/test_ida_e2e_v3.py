@@ -6,6 +6,7 @@ from asas_agent.graph.workflow import create_orchestrator_graph
 from asas_agent.agents.reverse import create_reverse_agent
 from langchain_core.tools import tool
 
+@pytest.mark.skip(reason="需要 IDA Pro 服务器和多 Agent 协作图环境")
 @pytest.mark.asyncio
 async def test_orchestrator_to_reverse_ida_flow():
     """

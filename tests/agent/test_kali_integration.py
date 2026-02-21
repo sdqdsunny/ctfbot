@@ -2,6 +2,7 @@ import pytest
 from asas_agent.graph.workflow import create_agent_graph
 from asas_agent.llm.mock import MockLLM
 
+@pytest.mark.skip(reason="需要运行中的 VMware Fusion Kali VM 环境")
 @pytest.mark.asyncio
 async def test_kali_vm_integration_smoke():
     """

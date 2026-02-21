@@ -1,8 +1,9 @@
-# CTF-ASAS v3.0 Multi-Agent Configuration (LOCAL LLM - High Speed)
+# CTF-ASAS v3.0 DeepSeek Configuration
 orchestrator:
   provider: "openai"
   model: "deepseek-chat"
   base_url: "https://api.deepseek.com/v1"
+  api_key: "sk-5202280c2e1243a3a8864e65b208fe2b"
   temperature: 0.1
 
 agents:
@@ -10,23 +11,29 @@ agents:
     provider: "openai"
     model: "deepseek-chat"
     base_url: "https://api.deepseek.com/v1"
+    api_key: "sk-5202280c2e1243a3a8864e65b208fe2b"
   recon:
-    provider: "openai" 
+    provider: "openai"
     model: "deepseek-chat"
     base_url: "https://api.deepseek.com/v1"
+    api_key: "sk-5202280c2e1243a3a8864e65b208fe2b"
   web:
     provider: "openai"
     model: "deepseek-chat"
     base_url: "https://api.deepseek.com/v1"
+    api_key: "sk-5202280c2e1243a3a8864e65b208fe2b"
   reverse:
     provider: "openai"
     model: "deepseek-chat"
     base_url: "https://api.deepseek.com/v1"
+    api_key: "sk-5202280c2e1243a3a8864e65b208fe2b"
   writeup:
     provider: "openai"
     model: "deepseek-chat"
     base_url: "https://api.deepseek.com/v1"
+    api_key: "sk-5202280c2e1243a3a8864e65b208fe2b"
   memory:
     provider: "openai"
     model: "deepseek-chat"
     base_url: "https://api.deepseek.com/v1"
+    api_key: "sk-5202280c2e1243a3a8864e65b208fe2b"

@@ -14,8 +14,10 @@ from typing import Dict, Any, List
 logger = logging.getLogger(__name__)
 
 def remote_actor_decorator(cls):
-    """Decorator to make the class a Ray actor if ray is available."""
-    if ray:
+    """Decorator to make the class a Ray actor if ray is available.
+    Set ASAS_NO_RAY=1 to disable Ray wrapping (for unit tests).
+    """
+    if ray and not os.environ.get("ASAS_NO_RAY"):
         return ray.remote(cls)
     return cls
 

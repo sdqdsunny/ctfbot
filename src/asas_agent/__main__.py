@@ -57,38 +57,56 @@ def swarm_ban(node_id):
 @click.argument('input_text', required=False)
 @click.option('--url', help='CTF challenge URL for automatic fetching')
 @click.option('--token', help='CTF platform API token')
-@click.option('--llm', type=click.Choice(['mock', 'claude']), default='mock', help='LLM provider to use')
+@click.option('--llm', type=click.Choice(['mock', 'claude', 'openai', 'lmstudio', 'config']), default='config', help='LLM provider to use')
 @click.option('--api-key', help='Anthropic API Key', envvar='ANTHROPIC_API_KEY')
 @click.option('--v2/--v1', default=False, help='Use v2 ReAct architecture')
 @click.option('--v3', is_flag=True, help='Use v3 Multi-Agent architecture')
 @click.option('--config', help='Path to v3 configuration YAML')
 def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
     """ASAS Agent CLI - Execute CTF tasks."""
+    print(f"DEBUG: main_cli entered. args: input={input_text}, llm={llm}, v3={v3}, v2={v2}") # DEBUG
 
     if not input_text and not url:
         click.echo("Error: Either INPUT_TEXT or --url must be provided", err=True)
         return
 
     async def run_v3():
+        print("DEBUG: run_v3 started") # DEBUG
         from asas_agent.graph.workflow import create_orchestrator_graph
         from asas_agent.mcp_client.client import MCPToolClient
         from asas_agent.llm.tool_adapter import convert_mcp_to_langchain_tools
         from asas_agent.llm.factory import create_llm
         from asas_agent.graph.dispatcher import dispatch_to_agent
+        from asas_agent.llm.factory import create_llm
+        from asas_agent.graph.dispatcher import dispatch_to_agent
         from langchain_core.messages import HumanMessage
         
-        cfg = load_v3_config(config)
+        from asas_agent.utils.config import config_loader
+        cfg = config_loader.load_config(config) if config else config_loader.load_config("v3_config.yaml")
         
         # 1. Setup Tools
         client = MCPToolClient()
         try:
             all_tools = await convert_mcp_to_langchain_tools(client)
             
-            # 过滤：指挥官只需要核心工具，减轻本地模型压力
-            core_tool_names = ["platform_get_challenge", "platform_submit_flag", "dispatch_to_agent"]
+            # 过滤：指挥官只需要核心工具，减轻本地模型和DeepSeek API压力
+            # 简化为最核心的三大件：扫描、SQL注入、命令执行
+            core_tool_names = [
+                "kali_nmap", 
+                "kali_sqlmap", 
+                "kali_exec", 
+                "web_extract_links",
+                "dispatch_to_agent",
+                "open_vm_vnc",
+                "kali_upload_file",
+                "kali_file",
+                "kali_checksec",
+                "reverse_ghidra_decompile",
+                "sandbox_run_python"
+            ]
             tools = [t for t in all_tools if t.name in core_tool_names]
             
-            # 如果 dispatch_to_agent 不在 MCP 里（它是装饰器定义的），手动添加
+            # 手动确认 dispatch_to_agent 存在
             if not any(t.name == "dispatch_to_agent" for t in tools):
                 tools.append(dispatch_to_agent)
                 
@@ -99,10 +117,22 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
 
         # 2. Setup Orchestrator LLM
         orch_cfg = cfg["orchestrator"]
+        if llm == 'openai':
+            # Use DeepSeek as default for 'openai' choice if not in config
+            if "api_key" not in orch_cfg:
+                orch_cfg["api_key"] = api_key or os.environ.get("DEEPSEEK_API_KEY")
+            if "base_url" not in orch_cfg:
+                orch_cfg["base_url"] = "https://api.deepseek.com/v1"
+            if "model" not in orch_cfg:
+                orch_cfg["model"] = "deepseek-chat"
+            orch_cfg["provider"] = "openai"
+        
         if llm == 'mock':
             from asas_agent.llm.mock_react import ReActMockLLM
             orch_llm = ReActMockLLM()
         else:
+            if llm != 'config':
+                orch_cfg["provider"] = llm
             orch_llm = create_llm(orch_cfg)
             
         # 3. Build Graph
@@ -119,7 +149,7 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
         print(f"🚀 Starting v3 Multi-Agent Mission: {initial_msg}")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         
-        async for event in app.astream(state):
+        async for event in app.astream(state, config={"recursion_limit": 100}):
             if not isinstance(event, dict):
                 continue
             for key, value in event.items():
@@ -147,14 +177,28 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
         client = MCPToolClient()
         tools = await convert_mcp_to_langchain_tools(client)
         
+        from asas_agent.utils.config import config_loader
+        from asas_agent.llm.factory import create_llm
+        cfg = config_loader.load_config(config) if config else config_loader.load_config("v3_config.yaml")
+        orch_cfg = cfg["orchestrator"]
+        
+        # Apply command line overrides
+        if llm == 'openai':
+            orch_cfg["api_key"] = api_key or os.environ.get("DEEPSEEK_API_KEY")
+            orch_cfg["base_url"] = "https://api.deepseek.com/v1"
+            orch_cfg["model"] = "deepseek-reasoner"
+            orch_cfg["provider"] = "openai"
+
         if llm == 'claude':
             from asas_agent.llm.langchain_claude import create_langchain_claude
             llm_provider = create_langchain_claude(api_key=api_key)
-        else:
+        elif llm == 'mock':
             from asas_agent.llm.mock_react import ReActMockLLM
             llm_provider = ReActMockLLM()
+        else:
+            llm_provider = create_llm(orch_cfg)
             
-        print(f"🧠 Initializing v2 ReAct Agent ({'Claude' if llm == 'claude' else 'Mock'})...")
+        print(f"🧠 Initializing v2 ReAct Agent ({llm_provider._llm_type if hasattr(llm_provider, '_llm_type') else 'Generic'})...")
         app = create_react_agent_graph(llm_provider, tools)
         initial_msg = input_text or f"Fetching challenge from {url}"
         inputs = {"messages": [HumanMessage(content=initial_msg)]}
@@ -202,9 +246,33 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
                     # Node usually passes simple messages
                     return raw_llm.invoke(messages[0]["content"]).content
             llm_provider = LegacyAdapter()
-        else:
+        
+        from asas_agent.utils.config import config_loader
+        current_config = config_loader.load_config(config) if config else config_loader.load_config("v3_config.yaml")
+        orch_cfg = current_config["orchestrator"]
+        
+        # Apply command line overrides for v1
+        if llm == 'openai':
+            orch_cfg["api_key"] = api_key or os.environ.get("DEEPSEEK_API_KEY")
+            orch_cfg["base_url"] = "https://api.deepseek.com/v1"
+            orch_cfg["model"] = "deepseek-chat"
+            orch_cfg["provider"] = "openai"
+
+        if llm == 'mock':
             from asas_agent.llm.mock import MockLLM
             llm_provider = MockLLM()
+        else:
+            llm_provider = create_llm(orch_cfg)
+            # v1 legacy expects a .chat() method or similar
+            # If it's a LangChain model, we might need a small wrapper
+            if not hasattr(llm_provider, "chat"):
+                class LegacyWrapper:
+                    def __init__(self, model): self.model = model
+                    def chat(self, messages): 
+                        # v1 passes list of dicts: [{"role": "user", "content": "..."}]
+                        content = messages[-1]["content"]
+                        return self.model.invoke(content).content
+                llm_provider = LegacyWrapper(llm_provider)
 
         app = create_agent_graph(llm_provider)
         
@@ -218,8 +286,9 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
         print(f"🚀 Starting v1 Mission: {initial_msg}")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         
-        # v1 doesn't support astream as well as v2, we'll use invoke
-        result = await app.ainvoke(inputs)
+        # Increase recursion limit for complex tasks
+        config_run = {"recursion_limit": 500}
+        result = await app.ainvoke(inputs, config=config_run)
         print(f"🏁 Final Answer: {result.get('final_answer')}")
         
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

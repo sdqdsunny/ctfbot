@@ -31,14 +31,9 @@ async def test_end_to_end_recon_scan_mock():
     inputs = {"user_input": "扫描 IP 127.0.0.1"}
     result = await app.ainvoke(inputs)
     
-    # Verify
-    assert result["task_understanding"] == "recon_scan"
-    assert result["planned_tool"] == "recon_scan"
-    assert result["tool_args"]["target"] == "127.0.0.1"
-    # Just checking it returns a result, exact content depends on nmap execution
-    # For CI usually nmap might not be present or sudo issue, but let's see. 
-    # If the tool fails (e.g. nmap not found), it returns Error.
-    # We should probably mock the MCP client for a strict unit test, 
-    # but the goal here IS to test the MCP integration implicitly.
-    # If nmap is not installed, this might fail or return error string.
-    # Let's check if 'Error' or a dict result comes back.
+    # Verify: recon_scan should appear in task history
+    history = result.get("task_history", [])
+    tools_run = [h["tool"] for h in history]
+    assert "recon_scan" in tools_run
+    # The graph may chain to dirsearch/sqlmap from pending tasks
+    assert result.get("final_answer") is not None

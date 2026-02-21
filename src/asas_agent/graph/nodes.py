@@ -33,9 +33,12 @@ class AgentNodes:
 
         # 启发式覆盖：如果输入中明确提到了某个工具，且当前处于重试/调度状态
         trigger_phrases = ["请立即使用", "请尝试使用", "请使用"]
-        for t in ["kali_sqlmap", "kali_nmap", "kali_dirsearch", "kali_exec", "web_extract_links", "platform_fetch"]:
+        for t in ["kali_sqlmap", "kali_nmap", "kali_dirsearch", "kali_exec", "web_extract_links", "platform_fetch", "open_vm_vnc"]:
             if t in state['user_input'] and any(p in state['user_input'] for p in trigger_phrases):
                 print(f"--- [Understand] Heuristic Match: {t} ---")
+                
+                if t == "open_vm_vnc":
+                    t = "open_vm_vnc"
                 # 清除强制指令，避免循环
                 new_input = state['user_input']
                 for p in trigger_phrases:
@@ -44,8 +47,8 @@ class AgentNodes:
 
         prompt = (
             f"当前任务: {state['user_input']}\n{history_context}\n"
-            "请从以下选项中选择下一步的最优意图（仅输出意图名称，如 kali_sqlmap, kali_nmap, recon_scan, final_answer 等）:\n"
-            "[kali_sqlmap, kali_nmap, kali_dirsearch, kali_exec, recon_scan, crypto_decode, platform_fetch, web_extract_links, final_answer]\n"
+            "请从以下选项中选择下一步的最优意图（仅输出意图名称，如 kali_sqlmap, kali_nmap, recon_scan, open_vm_vnc, final_answer 等）:\n"
+            "[kali_sqlmap, kali_nmap, kali_dirsearch, kali_exec, recon_scan, crypto_decode, platform_fetch, web_extract_links, open_vm_vnc, final_answer]\n"
             "注意：必须仅输出意图名字，严禁任何解释或推理。"
         )
         messages = [{"role": "user", "content": prompt}]
@@ -58,7 +61,7 @@ class AgentNodes:
         
         # Take only the first word or last word if it's a sentence
         # Some models might still be chatty
-        intent_match = re.search(r"\b(kali_sqlmap|kali_nmap|kali_dirsearch|kali_exec|recon_scan|crypto_decode|platform_fetch|final_answer)\b", clean_understanding)
+        intent_match = re.search(r"\b(kali_sqlmap|kali_nmap|kali_dirsearch|kali_exec|recon_scan|crypto_decode|platform_fetch|web_extract_links|open_vm_vnc|final_answer)\b", clean_understanding)
         understanding = intent_match.group(1) if intent_match else clean_understanding.split()[-1]
 
         print(f"--- [Understand] LLM Intent: {understanding} ---")
@@ -222,10 +225,10 @@ class AgentNodes:
                 "tool_args": {"url": url}
             }
         
-        elif intent == "zeroclaw_vnc":
+        elif intent == "open_vm_vnc":
             vm = "pentest-windows" if "windows" in user_input.lower() else "kali"
             return {
-                "planned_tool": "invoke_zeroclaw_vnc",
+                "planned_tool": "open_vm_vnc",
                 "tool_args": {"vm_name": vm}
             }
 

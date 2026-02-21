@@ -3,14 +3,15 @@ from unittest.mock import MagicMock, patch
 from asas_mcp.executors.docker_manager import DockerManager
 
 def test_docker_manager_init():
-    with patch("docker.from_env") as mock_env:
+    with patch("asas_mcp.executors.docker_manager.docker") as mock_docker:
+        mock_docker.from_env.return_value = MagicMock()
         manager = DockerManager()
-        assert mock_env.called
+        assert mock_docker.from_env.called
 
 def test_start_fuzzer_container():
-    with patch("docker.from_env") as mock_env:
+    with patch("asas_mcp.executors.docker_manager.docker") as mock_docker:
         mock_client = MagicMock()
-        mock_env.return_value = mock_client
+        mock_docker.from_env.return_value = mock_client
         manager = DockerManager()
         
         manager.start_fuzzer_container("/tmp/test_bin", "test_fuzzer")
