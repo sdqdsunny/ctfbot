@@ -1,9 +1,15 @@
 from mcp.server.fastmcp import FastMCP
-from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox
+from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, zeroclaw
 import base64
 
 # 创建 MCP Server 实例
 mcp_server = FastMCP("asas-core-mcp")
+
+@mcp_server.tool()
+async def invoke_zeroclaw_vnc(vm_name: str) -> str:
+    """Uses ZeroClaw to open a Browser-based VNC (NoVNC) session for the specified virtual machine (e.g., 'kali', 'pentest-windows') to enable Human-UI interaction."""
+    return await zeroclaw.zeroclaw_open_vnc(vm_name)
+
 
 @mcp_server.tool()
 def recon_scan(target: str, ports: str = "1-1000") -> dict:
