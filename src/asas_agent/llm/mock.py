@@ -8,62 +8,76 @@ class MockLLM(LLMProvider):
         if not messages:
             return "unknown"
             
-        user_msg = messages[-1]["content"].lower()
+        # Only look at the actual task input (first line) to avoid
+        # matching against the option list in the prompt.
+        full_msg = messages[-1]["content"]
+        # Extract first line (task description) for intent matching
+        task_line = full_msg.split('\n')[0].lower() if full_msg else ""
+        user_msg = full_msg.lower()  # full for context checks
 
-        if "platform_fetch" in user_msg:
-            return "platform_fetch"
-            
-        # If input is just a URL and NOT in a history context, fetch it.
-        # If it's in history context, it means the fetch probably failed or was done, 
-        # so don't return platform_fetch again.
-        if user_msg.startswith("http") and "已尝试的历史操作" not in user_msg:
-             if "scan" not in user_msg and "扫描" not in user_msg:
-                return "platform_fetch"
-            
-        if "sql 注入已确认" in user_msg.lower():
+        # 1. Specific content rules FIRST (high-priority keywords)
+        if "gui" in task_line or "桌面" in task_line or "vnc" in task_line:
+            return "zeroclaw_vnc"
+
+        if "base64" in task_line or "解码" in task_line or "decode" in task_line or "morse" in task_line or "摩斯" in task_line or "caesar" in task_line or "凯撒" in task_line:
+            return "crypto_decode"
+
+        if "sql 注入已确认" in task_line:
             return "final_answer" 
 
-        # Context-aware rules
-        if "Explore found path" in user_msg or "login.php" in user_msg:
-            if "sqli" in user_msg or "注入" in user_msg or "sqlmap" in user_msg:
-                return "kali_sqlmap"
+        # 2. Context-aware rules (dispatcher tasks with explicit paths)
+        if "Explore found path" in task_line or "login.php" in task_line:
             return "kali_sqlmap" 
 
-        # Simple rule-based matching
-        if "base64" in user_msg or "解码" in user_msg or "decode" in user_msg or "morse" in user_msg or "摩斯" in user_msg or "caesar" in user_msg or "凯撒" in user_msg:
-            return "crypto_decode"
-        elif "扫描" in user_msg or "scan" in user_msg:
-            if "http" in user_msg or "目录" in user_msg:
+        # 3. Tool-name matches in task line (very specific)
+        if "steghide" in task_line:
+            return "kali_steghide"
+        if "zsteg" in task_line:
+            return "kali_zsteg"
+        if "tshark" in task_line or "pcap" in task_line:
+            return "kali_tshark"
+        if "binwalk" in task_line:
+            return "kali_binwalk"
+        if "foremost" in task_line:
+            return "kali_foremost"
+        if "sqlmap" in task_line or ("注入" in task_line and "探测" in task_line):
+            return "kali_sqlmap"
+        if "dirsearch" in task_line:
+            return "kali_dirsearch"
+        if "nmap" in task_line:
+            return "kali_nmap"
+
+        # 4. Platform fetch rules
+        if "platform_fetch" in task_line:
+            return "platform_fetch"
+        if task_line.startswith("http") and "已尝试的历史操作" not in user_msg:
+            if "scan" not in task_line and "扫描" not in task_line:
+                return "platform_fetch"
+
+        # 5. Category rules (broader matching)
+        if "扫描" in task_line or "scan" in task_line:
+            if "http" in task_line or "目录" in task_line:
                 return "kali_dirsearch"
             return "recon_scan"
-        elif "nmap" in user_msg or "扫描端口" in user_msg:
-            return "kali_nmap"
-        elif "隐写" in user_msg or "steghide" in user_msg:
+        elif "隐写" in task_line:
             return "kali_steghide"
-        elif "zsteg" in user_msg:
-            return "kali_zsteg"
-        elif "流量" in user_msg or "tshark" in user_msg or "pcap" in user_msg:
+        elif "流量" in task_line:
             return "kali_tshark"
-        elif "binwalk" in user_msg:
-            return "kali_binwalk"
-        elif "foremost" in user_msg:
-            return "kali_foremost"
-        elif "文件" in user_msg or "file" in user_msg:
-            return "misc_identify_file"
-        elif "分析" in user_msg and "代码" in user_msg:
-            # Simulate analyzing C code and generating a Python solver
-            return "generate_solver"
-        elif "kali" in user_msg:
-            return "kali_exec"
-        elif "decompile" in user_msg or "反编译" in user_msg:
-            return "reverse_ghidra_decompile"
-        elif "目录" in user_msg or "dir" in user_msg:
-            return "kali_dirsearch"
-        elif "注入" in user_msg or "sqli" in user_msg:
+        elif "注入" in task_line or "sqli" in task_line:
             return "kali_sqlmap"
-        elif "沙箱" in user_msg or "sandbox" in user_msg or "运行" in user_msg and "脚本" in user_msg:
+        elif "目录" in task_line or "dir" in task_line:
+            return "kali_dirsearch"
+        elif "decompile" in task_line or "反编译" in task_line:
+            return "reverse_ghidra_decompile"
+        elif "分析" in task_line and "代码" in task_line:
+            return "generate_solver"
+        elif "文件" in task_line or "file" in task_line:
+            return "misc_identify_file"
+        elif "kali" in task_line:
+            return "kali_exec"
+        elif "沙箱" in task_line or "sandbox" in task_line:
             return "sandbox_execute"
-        elif "爬取" in user_msg or "links" in user_msg:
+        elif "爬取" in task_line or "links" in task_line:
             return "web_extract_links"
         
         return "unknown"
