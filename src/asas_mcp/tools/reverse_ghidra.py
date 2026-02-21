@@ -5,22 +5,18 @@ import base64
 import tempfile
 import logging
 
-def analyze_binary(data_base64: str) -> dict:
+def analyze_binary(file_path: str) -> dict:
     """
     Run Ghidra Headless inside Docker to decompile a binary.
     
     Args:
-        data_base64: Base64 encoded binary data.
+        file_path: Absolute path to the binary file on the host.
         
     Returns:
         Dictionary of function names and their decompiled C code.
     """
-    # Mock for testing
-    if data_base64 == "SGVsbG8=":
-        return {
-            "main": "int main() { char* flag = \"... \"; for(int i=0; i<10; i++) flag[i] ^= 0x66; }",
-            "check": "void check() { if(flag == 0) exit(0); }"
-        }
+    if not os.path.exists(file_path):
+        return {"error": f"File not found: {file_path}"}
         
     # 1. Create temporary workspace
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -28,9 +24,9 @@ def analyze_binary(data_base64: str) -> dict:
         output_json = os.path.join(tmp_dir, "output.json")
         script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "scripts"))
         
-        # Write binary file
-        with open(binary_path, "wb") as f:
-            f.write(base64.b64decode(data_base64))
+        # Copy binary file
+        import shutil
+        shutil.copy2(file_path, binary_path)
             
         # 2. Build Docker Command
         # We use blacktop/ghidra which is a well-maintained image
@@ -53,7 +49,7 @@ def analyze_binary(data_base64: str) -> dict:
         ]
         
         try:
-            print(f"Running Ghidra analysis on {len(data_base64)} bytes...")
+            print(f"Running Ghidra analysis on {file_path}...")
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             
             # 3. Read result

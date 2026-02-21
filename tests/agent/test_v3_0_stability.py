@@ -29,23 +29,22 @@ async def test_v3_0_chained_web_task_tree():
 
     mcp_mock.call_tool.side_effect = side_effect
     
-    with patch('asas_agent.mcp_client.client.MCPToolClient', return_value=mcp_mock):
-        app = create_agent_graph(llm)
-        
-        inputs = {
-            "user_input": "Start scanning http://mock-web.local",
-            "platform_url": "http://mock-web.local/api"
-        }
-        
-        result = await app.ainvoke(inputs)
-        
-        # Verify the history trace
-        history = result.get("task_history")
-        tools_run = [h["tool"] for h in history]
-        
-        assert "platform_get_challenge" in tools_run
-        assert "kali_dirsearch" in tools_run
-        assert "kali_sqlmap" in tools_run
-        
-        # Verify result mentions vulnerability
-        assert "SQL 注入已确认" in result["final_answer"]
+    app = create_agent_graph(llm, mcp_client=mcp_mock)
+    
+    inputs = {
+        "user_input": "Start scanning http://mock-web.local",
+        "platform_url": "http://mock-web.local/api"
+    }
+    
+    result = await app.ainvoke(inputs)
+    
+    # Verify the history trace
+    history = result.get("task_history")
+    tools_run = [h["tool"] for h in history]
+    
+    assert "platform_get_challenge" in tools_run
+    assert "kali_dirsearch" in tools_run
+    assert "kali_sqlmap" in tools_run
+    
+    # Verify result mentions vulnerability
+    assert "SQL 注入已确认" in result["final_answer"]

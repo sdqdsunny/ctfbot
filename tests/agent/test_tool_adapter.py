@@ -23,10 +23,9 @@ async def test_convert_mcp_tools():
     assert tools[0].name == "test_tool"
     assert tools[0].description == "A test tool"
     
-    # Verify the underlying coroutine works correctly
+    # Verify the underlying async call works correctly
     mock_client.call_tool.return_value = "Success"
-    # Access the coroutine directly
-    result = await tools[0].coroutine(arg1="value")
+    result = await tools[0].ainvoke({"arg1": "value"})
     assert result == "Success"
     mock_client.call_tool.assert_called_with("test_tool", {"arg1": "value"})
 

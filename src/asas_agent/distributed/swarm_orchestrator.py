@@ -1,4 +1,7 @@
-import ray
+try:
+    import ray
+except ImportError:
+    ray = None
 import logging
 from typing import List, Dict, Any
 from .swarm_worker import SwarmWorker

@@ -4,76 +4,84 @@ from asas_mcp.tools import crypto, web, kali, recon, misc, sandbox, platform, re
 
 # Crypto Tools
 @tool
-def crypto_decode_tool(content: str, method: str = "auto") -> str:
+def crypto_decode(content: str, method: str = "auto") -> str:
     """解码常见编码格式 (base64/hex/url/rot13/caesar/morse/auto)"""
     return crypto.decode(content, method)
 
 # Web Tools
 @tool
-def web_dir_scan_tool(url: str, custom_words: List[str] = None) -> Dict[str, Any]:
+def web_dir_scan(url: str, custom_words: List[str] = None) -> Dict[str, Any]:
     """扫描目标 URL 的公共目录与文件"""
     return web.dir_scan(url, custom_words)
 
 @tool
-def web_sql_check_tool(url: str, param: str) -> Dict[str, Any]:
+def web_sql_check(url: str, param: str) -> Dict[str, Any]:
     """对指定参数执行基础 SQL 注入检测"""
     return web.sql_check(url, param)
 
 @tool
-def web_extract_links_tool(url: str) -> Dict[str, Any]:
+def web_extract_links(url: str) -> Dict[str, Any]:
     """提取页面内的所有链接与表单结构"""
     return web.extract_links(url)
 
 # Kali Tools
 @tool
-async def kali_sqlmap_tool(url: str, args: str = "--batch --banner") -> str:
+async def kali_sqlmap(url: str, args: str = "--batch --banner") -> str:
     """使用 sqlmap 执行自动化 SQL 注入检测与利用"""
     return kali.sqlmap(url, args)
 
 @tool
-async def kali_dirsearch_tool(url: str, args: str = "-e php,html,js") -> str:
+async def kali_dirsearch(url: str, args: str = "-e php,html,js") -> str:
     """使用 dirsearch 执行 Web 路径爆破"""
     return kali.dirsearch(url, args)
 
 @tool
-async def kali_nmap_tool(target: str, args: str = "-F") -> str:
+async def kali_nmap(target: str = None, args: str = "-F", target_ip: str = None) -> str:
     """使用 nmap 执行专业级端口扫描与指纹识别"""
+    target = target or target_ip
+    if not target:
+        return "Error: target or target_ip is required."
     return kali.nmap(target, args)
+
+@tool
+def kali_exec(cmd_str: str) -> str:
+    """在 Kali 虚拟机内执行任意 shell 命令"""
+    return kali.get_executor().execute(cmd_str)
 
 # Recon Tools
 @tool
-def recon_scan_tool(target: str, ports: str = "1-1000") -> Dict[str, Any]:
+def recon_scan(target: str, ports: str = "1-1000") -> Dict[str, Any]:
     """执行网络侦察扫描"""
     return recon.scan(target, ports)
 
 # Misc/Sandbox Tools
 @tool
-def misc_run_python_tool(code: str) -> str:
+def misc_run_python(code: str) -> str:
     """在安全沙箱容器内运行 Python 代码"""
     return sandbox.run_python(code)
 
 @tool
-def sandbox_execute_tool(code: str, language: str = "python") -> str:
+def sandbox_execute(code: str, language: str = "python") -> str:
     """在隔离容器内运行多种语言代码 (python/bash)"""
     return sandbox.run_in_sandbox(code, language)
 
 # Platform Tools
 @tool
-def platform_get_challenge_tool(url: str, token: str = None) -> str:
+def platform_get_challenge(url: str, token: str = None) -> str:
     """从 CTF 平台获取题目详情"""
     return platform.platform_get_challenge(url, token)
 
 @tool
-def platform_submit_flag_tool(challenge_id: str, flag: str, base_url: str, token: str = None) -> str:
+def platform_submit_flag(challenge_id: str, flag: str, base_url: str, token: str = None) -> str:
     """向 CTF 平台提交 Flag"""
     return platform.platform_submit_flag(challenge_id, flag, base_url, token)
 
 # Tool Whitellist for Agent Types
 TOOL_WHITELIST = {
-    "crypto": [crypto_decode_tool, misc_run_python_tool, sandbox_execute_tool],
-    "web": [web_dir_scan_tool, web_sql_check_tool, web_extract_links_tool, kali_sqlmap_tool, kali_dirsearch_tool],
-    "reverse": [reverse_ghidra.analyze_binary, misc_run_python_tool, sandbox_execute_tool],
-    "recon": [recon_scan_tool, kali_nmap_tool],
+    "crypto": [crypto_decode, misc_run_python, sandbox_execute],
+    "web": [web_dir_scan, web_sql_check, web_extract_links, kali_sqlmap, kali_dirsearch, kali_exec],
+    "reverse": [reverse_ghidra.analyze_binary, misc_run_python, sandbox_execute],
+    "recon": [recon_scan, kali_nmap, kali_exec],
     "writeup": [], # Writeup agent usually doesn't need external tools, just its state
     "memory": [] # Memory tools are often handled separately or via retrieval
 }

@@ -24,9 +24,12 @@ async def test_dispatch_to_agent_real_logic():
         
         # 1. 模拟子 Agent 图
         mock_graph = MagicMock()
-        mock_graph.ainvoke = AsyncMock(return_value={
-            "messages": [AIMessage(content="分析完毕。解码结果显示 flag 是 flag{internal_agent_success}")]
-        })
+        ai_msg = AIMessage(content="分析完毕。解码结果显示 flag 是 flag{internal_agent_success}")
+        
+        # dispatcher uses astream, not ainvoke — mock it as async generator
+        async def mock_astream(*args, **kwargs):
+            yield {"agent": {"messages": [ai_msg]}}
+        mock_graph.astream = mock_astream
         
         # 2. 模拟 AGENT_CREATORS 包含 crypto 并返回 Creator
         mock_creators.__contains__.return_value = True

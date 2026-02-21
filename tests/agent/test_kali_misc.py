@@ -22,17 +22,16 @@ async def test_kali_misc_tools_flow():
 
     mcp_mock.call_tool.side_effect = side_effect
     
-    with patch('asas_agent.mcp_client.client.MCPToolClient', return_value=mcp_mock):
-        app = create_agent_graph(llm)
-        
-        # 1. Test Steghide
-        res = await app.ainvoke({"user_input": "使用 steghide 检查文件 /tmp/secret.jpg"})
-        assert "flag{stego_found}" in res["final_answer"]
-        
-        # 2. Test Binwalk
-        res = await app.ainvoke({"user_input": "使用 binwalk 分析 /tmp/binary"})
-        assert "Zip archive data" in res["final_answer"]
-        
-        # 3. Test Foremost
-        res = await app.ainvoke({"user_input": "使用 foremost 恢复 /tmp/corrupted.img"})
-        assert "Extracted Files" in res["final_answer"]
+    app = create_agent_graph(llm, mcp_client=mcp_mock)
+    
+    # 1. Test Steghide
+    res = await app.ainvoke({"user_input": "使用 steghide 检查文件 /tmp/secret.jpg"})
+    assert "flag{stego_found}" in res["final_answer"]
+    
+    # 2. Test Binwalk
+    res = await app.ainvoke({"user_input": "使用 binwalk 分析 /tmp/binary"})
+    assert "Zip archive data" in res["final_answer"]
+    
+    # 3. Test Foremost
+    res = await app.ainvoke({"user_input": "使用 foremost 恢复 /tmp/corrupted.img"})
+    assert "Extracted Files" in res["final_answer"]

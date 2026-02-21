@@ -20,10 +20,9 @@ async def convert_mcp_to_langchain_tools(mcp_client: MCPToolClient) -> List[Stru
             raise NotImplementedError("Use _arun")
             
         async def _arun(self, **kwargs):
-            # 兼容性处理：如果所有参数被包裹在第一个 args 中
-            final_args = kwargs
-            if not kwargs and hasattr(self, '_args') and self._args:
-                # 这种情况很少见，但以防万一
+            # 处理多余的 kwargs 嵌套 (Langchain 新特性容忍)
+            final_args = kwargs.get("kwargs", kwargs)
+            if not final_args and hasattr(self, '_args') and self._args:
                 pass
                 
             print(f"DEBUG [MCPTool]: {self.name} final_args={final_args}")

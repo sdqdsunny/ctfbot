@@ -1,14 +1,14 @@
 from mcp.server.fastmcp import FastMCP
-from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, zeroclaw
+from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, vms_vnc
 import base64
 
 # 创建 MCP Server 实例
 mcp_server = FastMCP("asas-core-mcp")
 
 @mcp_server.tool()
-async def invoke_zeroclaw_vnc(vm_name: str) -> str:
-    """Uses ZeroClaw to open a Browser-based VNC (NoVNC) session for the specified virtual machine (e.g., 'kali', 'pentest-windows') to enable Human-UI interaction."""
-    return await zeroclaw.zeroclaw_open_vnc(vm_name)
+async def open_vm_vnc(vm_name: str) -> str:
+    """Opens a Browser-based VNC (NoVNC) session for the specified virtual machine (e.g., 'kali', 'pentest-windows') to enable direct remote interaction."""
+    return await vms_vnc.open_vm_vnc(vm_name)
 
 
 @mcp_server.tool()
@@ -84,16 +84,16 @@ def reverse_extract_strings(data_base64: str, min_length: int = 4) -> list:
     return reverse.extract_strings(data, min_length)
 
 @mcp_server.tool()
-def reverse_ghidra_decompile(data_base64: str) -> dict:
+def reverse_ghidra_decompile(file_path: str) -> dict:
     """[深度分析] 使用 Ghidra 执行自动化反编译
     
     Args:
-        data_base64: Base64 编码的二进制文件数据
+        file_path: 宿主机上的核心二进制文件绝对路径
         
     Returns:
         包含所有函数及其对应 C 伪代码的字典
     """
-    return reverse_ghidra.analyze_binary(data_base64)
+    return reverse_ghidra.analyze_binary(file_path)
 
 # --- Web Pentest Tools ---
 
@@ -163,6 +163,21 @@ def platform_submit_flag(base_url: str, challenge_id: str, flag: str, token: str
 def kali_sqlmap(url: str, args: str = "--batch --banner") -> str:
     """[Kali] 使用 sqlmap 执行自动化 SQL 注入检测与利用"""
     return kali.sqlmap(url, args)
+
+@mcp_server.tool()
+def kali_upload_file(host_path: str, guest_path: str = "/tmp/") -> str:
+    """[Kali] 将本地物理机(宿主机)的文件上传到 Kali 虚拟机中，返回虚拟机内的路径以供后续分析使用"""
+    return kali.upload_file(host_path, guest_path)
+
+@mcp_server.tool()
+def kali_file(file_path_guest: str) -> str:
+    """[Kali] 使用 file 命令判断文件架构 (ELF32/64, Strip等)"""
+    return kali.file_cmd(file_path_guest)
+
+@mcp_server.tool()
+def kali_checksec(file_path_guest: str) -> str:
+    """[Kali] 使用 checksec 工具检查二进制文件的安全选项保护 (NX, PIE, Canary等)"""
+    return kali.checksec(file_path_guest)
 
 @mcp_server.tool()
 def kali_dirsearch(url: str, args: str = "-e php,html,js") -> str:
@@ -283,6 +298,9 @@ def create_app():
                 "web_sql_check",
                 "web_extract_links",
                 "kali_sqlmap",
+                "kali_upload_file",
+                "kali_file",
+                "kali_checksec",
                 "kali_dirsearch",
                 "kali_nmap",
                 "kali_steghide",
