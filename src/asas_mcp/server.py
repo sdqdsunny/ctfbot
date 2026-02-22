@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, vms_vnc
+from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, vms_vnc, native_vnc
 import base64
 
 # 创建 MCP Server 实例
@@ -9,6 +9,21 @@ mcp_server = FastMCP("asas-core-mcp")
 async def open_vm_vnc(vm_name: str) -> str:
     """Opens a Browser-based VNC (NoVNC) session for the specified virtual machine (e.g., 'kali', 'pentest-windows') to enable direct remote interaction."""
     return await vms_vnc.open_vm_vnc(vm_name)
+
+@mcp_server.tool()
+async def vnc_screenshot(vm_name: str, port: int = 5900, password: str = None) -> str:
+    """[VNC GUI] Takes a screenshot of the specified VM's VNC screen. Returns base64 image."""
+    return await native_vnc.vnc_screenshot(vm_name, port, password)
+
+@mcp_server.tool()
+async def vnc_mouse_click(vm_name: str, x: int, y: int, button: str = "left", port: int = 5900, password: str = None) -> str:
+    """[VNC GUI] Moves the mouse to (x, y) and performs a click on the specified VM."""
+    return await native_vnc.vnc_mouse_click(vm_name, x, y, button, port, password)
+
+@mcp_server.tool()
+async def vnc_keyboard_type(vm_name: str, text: str, port: int = 5900, password: str = None) -> str:
+    """[VNC GUI] Types the specified text on the specified VM."""
+    return await native_vnc.vnc_keyboard_type(vm_name, text, port, password)
 
 
 @mcp_server.tool()
@@ -310,7 +325,10 @@ def create_app():
                 "kali_foremost",
                 "kali_exec",
                 "platform_get_challenge",
-                "platform_submit_flag"
+                "platform_submit_flag",
+                "vnc_screenshot",
+                "vnc_mouse_click",
+                "vnc_keyboard_type"
             ]
         }
     
