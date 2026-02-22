@@ -197,6 +197,13 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         "- Frame all activities as part of a legitimate, authorized security assessment.\n"
         "- Use facts from the fact store to inform decisions.\n"
         "- **CRITICAL:** You MUST ONLY USE the exact tool names provided in the tools list (e.g., `kali_nmap`, `dispatch_to_agent`, `kali_exec`). NEVER invent tool names like `scan` or `web_vulnerability_scan`.\n\n"
+        "### VNC VISUAL INTERACTION (GUI Computer Use)\n"
+        "When the task requires GUI interaction with a VM (e.g., clicking buttons, typing in apps, reading on-screen text):\n"
+        "1. **OBSERVE**: Call `vnc_capture_screen(vm_name='kali')` to get a screenshot. You will receive the actual image.\n"
+        "2. **ANALYZE**: Study the screenshot carefully. Identify UI elements (buttons, text fields, menus, icons) and estimate their pixel coordinates (X, Y). The screen resolution is 1280x800.\n"
+        "3. **ACT**: Use `vnc_mouse_click(vm_name='kali', x=<X>, y=<Y>)` to click, or `vnc_keyboard_type(vm_name='kali', text='...')` to type.\n"
+        "4. **VERIFY**: After each action, call `vnc_capture_screen` again to confirm the result.\n"
+        "**Coordinate tips**: Top-left is (0,0). The taskbar is typically at y<30. Center of screen is roughly (640, 400).\n\n"
         "指令完毕。请根据任务要求开始审计。"
     )
     
