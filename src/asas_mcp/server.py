@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, vms_vnc, native_vnc
+from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, vms_vnc
 import base64
 
 # 创建 MCP Server 实例
@@ -11,20 +11,24 @@ async def open_vm_vnc(vm_name: str) -> str:
     return await vms_vnc.open_vm_vnc(vm_name)
 
 @mcp_server.tool()
-async def vnc_screenshot(vm_name: str, port: int = 5900, password: str = None) -> str:
-    """[VNC GUI] Takes a screenshot of the specified VM's VNC screen. Returns base64 image."""
-    return await native_vnc.vnc_screenshot(vm_name, port, password)
+async def vnc_capture_screen(vm_name: str, output_path: str = "/tmp/vnc_screenshot.png") -> str:
+    """[VNC GUI] Takes a screenshot of the specified VM's VNC screen. Returns physical path."""
+    return await vms_vnc.vnc_capture_screen(vm_name, output_path)
 
 @mcp_server.tool()
-async def vnc_mouse_click(vm_name: str, x: int, y: int, button: str = "left", port: int = 5900, password: str = None) -> str:
-    """[VNC GUI] Moves the mouse to (x, y) and performs a click on the specified VM."""
-    return await native_vnc.vnc_mouse_click(vm_name, x, y, button, port, password)
+async def vnc_mouse_click(vm_name: str, x: int, y: int, button: int = 1, double: bool = False) -> str:
+    """[VNC GUI] Moves the mouse to absolute coordinates (x, y) and performs a click on the specified VM."""
+    return await vms_vnc.vnc_mouse_click(vm_name, x, y, button, double)
 
 @mcp_server.tool()
-async def vnc_keyboard_type(vm_name: str, text: str, port: int = 5900, password: str = None) -> str:
-    """[VNC GUI] Types the specified text on the specified VM."""
-    return await native_vnc.vnc_keyboard_type(vm_name, text, port, password)
+async def vnc_keyboard_type(vm_name: str, text: str, append_enter: bool = False) -> str:
+    """[VNC GUI] Types the specified literal text on the specified VM."""
+    return await vms_vnc.vnc_keyboard_type(vm_name, text, append_enter)
 
+@mcp_server.tool()
+async def vnc_send_key(vm_name: str, key: str) -> str:
+    """[VNC GUI] Sends a special key (e.g. enter, esc, ctrl-c, f1, etc.) on the VM."""
+    return await vms_vnc.vnc_send_key(vm_name, key)
 
 @mcp_server.tool()
 def recon_scan(target: str, ports: str = "1-1000") -> dict:
@@ -326,9 +330,10 @@ def create_app():
                 "kali_exec",
                 "platform_get_challenge",
                 "platform_submit_flag",
-                "vnc_screenshot",
+                "vnc_capture_screen",
                 "vnc_mouse_click",
-                "vnc_keyboard_type"
+                "vnc_keyboard_type",
+                "vnc_send_key"
             ]
         }
     

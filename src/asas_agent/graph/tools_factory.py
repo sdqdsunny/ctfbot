@@ -24,6 +24,31 @@ def web_extract_links(url: str) -> Dict[str, Any]:
     """提取页面内的所有链接与表单结构"""
     return web.extract_links(url)
 
+# VNC GUI Tools (C2 Phase)
+@tool
+async def vnc_capture_screen(vm_name: str, output_path: str = "/tmp/vnc_screenshot.png") -> str:
+    """[VNC GUI] Takes a screenshot of the specified VM's VNC screen."""
+    from asas_mcp.tools import vms_vnc
+    return await vms_vnc.vnc_capture_screen(vm_name, output_path)
+
+@tool
+async def vnc_mouse_click(vm_name: str, x: int, y: int, button: int = 1, double: bool = False) -> str:
+    """[VNC GUI] Moves the mouse to absolute coordinates (x, y) and performs a click on the specified VM."""
+    from asas_mcp.tools import vms_vnc
+    return await vms_vnc.vnc_mouse_click(vm_name, x, y, button, double)
+
+@tool
+async def vnc_keyboard_type(vm_name: str, text: str, append_enter: bool = False) -> str:
+    """[VNC GUI] Types the specified literal text on the specified VM."""
+    from asas_mcp.tools import vms_vnc
+    return await vms_vnc.vnc_keyboard_type(vm_name, text, append_enter)
+
+@tool
+async def vnc_send_key(vm_name: str, key: str) -> str:
+    """[VNC GUI] Sends a special key (e.g. enter, esc, ctrl-c, f1, etc.) on the VM."""
+    from asas_mcp.tools import vms_vnc
+    return await vms_vnc.vnc_send_key(vm_name, key)
+
 # Kali Tools
 @tool
 async def kali_sqlmap(url: str, args: str = "--batch --banner") -> str:
@@ -79,7 +104,11 @@ def platform_submit_flag(challenge_id: str, flag: str, base_url: str, token: str
 # Tool Whitellist for Agent Types
 TOOL_WHITELIST = {
     "crypto": [crypto_decode, misc_run_python, sandbox_execute],
-    "web": [web_dir_scan, web_sql_check, web_extract_links, kali_sqlmap, kali_dirsearch, kali_exec, kali_nmap],
+    "web": [
+        web_dir_scan, web_sql_check, web_extract_links, 
+        kali_sqlmap, kali_dirsearch, kali_exec, kali_nmap,
+        vnc_capture_screen, vnc_mouse_click, vnc_keyboard_type, vnc_send_key
+    ],
     "reverse": [reverse_ghidra.analyze_binary, misc_run_python, sandbox_execute],
     "recon": [recon_scan, kali_nmap, kali_exec],
     "writeup": [], # Writeup agent usually doesn't need external tools, just its state

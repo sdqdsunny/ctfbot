@@ -8,9 +8,12 @@ async def test_call_tool():
     with patch("asas_agent.mcp_client.client.stdio_client") as mock_stdio:
         mock_session = AsyncMock()
         mock_session.initialize = AsyncMock()
-        # Mock result structure
+        # Mock result structure to match new MCP text content parsing
         mock_result = AsyncMock()
-        mock_result.content = [AsyncMock(text="Tool Output")]
+        text_item = AsyncMock()
+        text_item.type = "text"
+        text_item.text = "Tool Output"
+        mock_result.content = [text_item]
         mock_session.call_tool.return_value = mock_result
         
         # Setup context managers

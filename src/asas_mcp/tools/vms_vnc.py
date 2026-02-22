@@ -66,3 +66,70 @@ async def open_vm_vnc(vm_name: str) -> str:
         return f"✅ Browser launched for {vm_name} at {novnc_url}"
     else:
         return f"❌ Failed to launch browser: {proc.stderr}"
+
+# --- Native VNC Interaction (C2 Phase) ---
+# Used for Agent autonomous Computer Use interactions
+async def _execute_vnc_do_command(vm_name: str, commands: list) -> str:
+    """Helper to execute vncdotool CLI commands against the VM's VNC port (5900)"""
+    ip = await get_vm_ip(vm_name)
+    if "Error" in ip:
+        return ip
+        
+    server_address = f"{ip}:5900" 
+    
+    # Run vncdotool as a subprocess to keep the MCP server robust
+    try:
+        # vncdotool -s <ip>:5900 <commands>
+        cli_args = ["vncdo", "-s", server_address] + commands
+        print(f"DEBUG: VNC command executing -> {' '.join(cli_args)}")
+        
+        proc = await asyncio.create_subprocess_exec(
+            *cli_args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        
+        if proc.returncode == 0:
+            return stdout.decode('utf-8') or "VNC sequence executed successfully"
+        else:
+            return f"VNC Execution Error: {stderr.decode('utf-8')}"
+    except Exception as e:
+        return f"Unexpected VNC Error: {e}"
+
+async def vnc_capture_screen(vm_name: str, output_path: str = "/tmp/vnc_screenshot.png") -> str:
+    """
+    Captures the current VNC screen of the specified VM and saves it to a file.
+    """
+    res = await _execute_vnc_do_command(vm_name, ["capture", output_path])
+    if "Error" in res:
+        return res
+    return f"Screenshot saved to {output_path}"
+
+async def vnc_mouse_click(vm_name: str, x: int, y: int, button: int = 1, double: bool = False) -> str:
+    """
+    Moves the mouse to (x,y) and clicks the specified button.
+    button: 1=Left, 2=Middle, 3=Right, 4=ScrollUp, 5=ScrollDown
+    """
+    cmd = ["move", str(x), str(y)]
+    if double:
+        cmd.extend(["pause", "0.1", "click", str(button), "click", str(button)])
+    else:
+        cmd.extend(["pause", "0.1", "click", str(button)])
+        
+    return await _execute_vnc_do_command(vm_name, cmd)
+
+async def vnc_keyboard_type(vm_name: str, text: str, append_enter: bool = False) -> str:
+    """
+    Types literal text into the VNC session.
+    """
+    cmd = ["type", text]
+    if append_enter:
+        cmd.extend(["key", "enter"])
+    return await _execute_vnc_do_command(vm_name, cmd)
+
+async def vnc_send_key(vm_name: str, key: str) -> str:
+    """
+    Sends a special key (e.g. enter, esc, ctrl-c, f1, etc.)
+    """
+    return await _execute_vnc_do_command(vm_name, ["key", key])
