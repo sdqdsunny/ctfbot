@@ -79,6 +79,161 @@ class LMStudioLLM(BaseChatModel):
 from dotenv import load_dotenv
 load_dotenv()
 
+class GeminiLLM(BaseChatModel):
+    """Custom LLM adapter for Google Gemini using native google-generativeai SDK.
+    
+    Supports multi-modal input (text + images) and function calling,
+    bypassing the langchain-google-genai version conflict.
+    """
+    api_key: str
+    model_name: str = "gemini-2.5-flash"
+    temperature: float = 0.0
+    _client: Any = None
+    _bound_tools: List[Any] = []
+
+    def model_post_init(self, __context: Any) -> None:
+        import google.generativeai as genai
+        genai.configure(api_key=self.api_key)
+        self._client = genai.GenerativeModel(self.model_name)
+        self._bound_tools = []
+
+    def _generate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, **kwargs) -> ChatResult:
+        import google.generativeai as genai
+        
+        # Convert LangChain messages to Gemini format
+        gemini_contents = []
+        for m in messages:
+            if m.type == "system":
+                gemini_contents.append({"role": "user", "parts": [f"[System Instructions]\n{m.content}"]})
+                gemini_contents.append({"role": "model", "parts": ["Understood. I will follow these instructions."]})
+            elif m.type == "human" or m.type == "user":
+                parts = []
+                content = m.content
+                # Handle multimodal content (list of dicts with text/image_url)
+                if isinstance(content, list):
+                    for item in content:
+                        if isinstance(item, dict):
+                            if item.get("type") == "text":
+                                parts.append(item["text"])
+                            elif item.get("type") == "image_url":
+                                url = item.get("image_url", {}).get("url", "")
+                                if url.startswith("data:"):
+                                    # Parse data URI: data:image/png;base64,<data>
+                                    import base64
+                                    header, b64data = url.split(",", 1)
+                                    mime = header.split(":")[1].split(";")[0]
+                                    img_bytes = base64.b64decode(b64data)
+                                    parts.append({"mime_type": mime, "data": img_bytes})
+                        elif isinstance(item, str):
+                            parts.append(item)
+                else:
+                    parts.append(str(content))
+                gemini_contents.append({"role": "user", "parts": parts})
+            elif m.type == "ai":
+                parts = []
+                if m.content:
+                    parts.append(str(m.content))
+                # Handle tool calls in AI messages
+                if hasattr(m, 'tool_calls') and m.tool_calls:
+                    from google.protobuf.struct_pb2 import Struct
+                    for tc in m.tool_calls:
+                        s = Struct()
+                        s.update(tc.get("args", {}))
+                        parts.append(genai.protos.Part(
+                            function_call=genai.protos.FunctionCall(
+                                name=tc["name"], args=s
+                            )
+                        ))
+                if parts:
+                    gemini_contents.append({"role": "model", "parts": parts})
+            elif m.type == "tool":
+                # Tool response
+                from google.protobuf.struct_pb2 import Struct
+                s = Struct()
+                try:
+                    result = json.loads(m.content) if isinstance(m.content, str) else m.content
+                except (json.JSONDecodeError, TypeError):
+                    result = {"result": str(m.content)}
+                if not isinstance(result, dict):
+                    result = {"result": str(result)}
+                s.update(result)
+                gemini_contents.append({
+                    "role": "user",
+                    "parts": [genai.protos.Part(
+                        function_response=genai.protos.FunctionResponse(
+                            name=m.name, response=s
+                        )
+                    )]
+                })
+
+        # Build tools for Gemini if bound
+        gemini_tools = None
+        if self._bound_tools:
+            func_declarations = []
+            for tool in self._bound_tools:
+                # Build a simple schema from tool description
+                func_declarations.append(genai.protos.FunctionDeclaration(
+                    name=tool.name,
+                    description=tool.description or "No description",
+                    parameters=genai.protos.Schema(
+                        type=genai.protos.Type.OBJECT,
+                        properties={},  # Gemini will infer params from description
+                    )
+                ))
+            if func_declarations:
+                gemini_tools = [genai.protos.Tool(function_declarations=func_declarations)]
+
+        try:
+            generation_config = genai.GenerationConfig(temperature=self.temperature)
+            response = self._client.generate_content(
+                gemini_contents,
+                tools=gemini_tools,
+                generation_config=generation_config,
+            )
+            
+            # Parse response
+            candidate = response.candidates[0]
+            text_parts = []
+            tool_calls = []
+            
+            for part in candidate.content.parts:
+                if part.text:
+                    text_parts.append(part.text)
+                if part.function_call:
+                    fc = part.function_call
+                    tool_calls.append({
+                        "name": fc.name,
+                        "args": dict(fc.args) if fc.args else {},
+                        "id": f"call_{fc.name}_{id(fc)}",
+                        "type": "tool_call"
+                    })
+            
+            content = "\n".join(text_parts)
+            return ChatResult(generations=[ChatGeneration(
+                message=AIMessage(content=content, tool_calls=tool_calls)
+            )])
+        except Exception as e:
+            print(f"ERROR [GeminiLLM]: {e}")
+            import traceback
+            traceback.print_exc()
+            return ChatResult(generations=[ChatGeneration(
+                message=AIMessage(content=f"Error calling Gemini: {str(e)}")
+            )])
+    
+    def bind_tools(self, tools: List[Any], **kwargs: Any) -> "GeminiLLM":
+        """Bind tools for function calling. Returns a new instance with tools bound."""
+        bound = GeminiLLM(
+            api_key=self.api_key,
+            model_name=self.model_name,
+            temperature=self.temperature
+        )
+        bound._bound_tools = list(tools)
+        return bound
+
+    @property
+    def _llm_type(self) -> str:
+        return "gemini"
+
 def create_llm(config: Dict[str, Any]) -> Any:
     """Create LLM instance based on configuration."""
     provider = config.get("provider", "anthropic").lower()
@@ -104,6 +259,15 @@ def create_llm(config: Dict[str, Any]) -> Any:
             api_key=api_key, 
             base_url=base_url,
             temperature=config.get("temperature", 0.1)
+        )
+    elif provider == "google":
+        api_key = config.get("api_key") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError(f"Missing API key for provider {provider}")
+        return GeminiLLM(
+            api_key=api_key,
+            model_name=model_name or "gemini-2.5-flash",
+            temperature=config.get("temperature", 0)
         )
     elif provider == "mock":
         from .mock_react import ReActMockLLM

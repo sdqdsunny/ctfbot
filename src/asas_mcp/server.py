@@ -1,5 +1,7 @@
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Image
 from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, vms_vnc
+import base64
+import os
 import base64
 
 # 创建 MCP Server 实例
@@ -11,9 +13,17 @@ async def open_vm_vnc(vm_name: str) -> str:
     return await vms_vnc.open_vm_vnc(vm_name)
 
 @mcp_server.tool()
-async def vnc_capture_screen(vm_name: str, output_path: str = "/tmp/vnc_screenshot.png") -> str:
-    """[VNC GUI] Takes a screenshot of the specified VM's VNC screen. Returns physical path."""
-    return await vms_vnc.vnc_capture_screen(vm_name, output_path)
+async def vnc_capture_screen(vm_name: str, output_path: str = "/tmp/vnc_screenshot.png") -> Image:
+    """[VNC GUI] Takes a screenshot of the specified VM's VNC screen.
+    The tool returns the raw Image object, visible to Vision-capable LLMs.
+    """
+    res = await vms_vnc.vnc_capture_screen(vm_name, output_path)
+    if "Error" in res or not os.path.exists(output_path):
+        raise ValueError(f"Failed to capture screen: {res}")
+        
+    with open(output_path, "rb") as f:
+        data = f.read()
+    return Image(data=data, format="png")
 
 @mcp_server.tool()
 async def vnc_mouse_click(vm_name: str, x: int, y: int, button: int = 1, double: bool = False) -> str:

@@ -57,7 +57,7 @@ def swarm_ban(node_id):
 @click.argument('input_text', required=False)
 @click.option('--url', help='CTF challenge URL for automatic fetching')
 @click.option('--token', help='CTF platform API token')
-@click.option('--llm', type=click.Choice(['mock', 'claude', 'openai', 'lmstudio', 'config']), default='config', help='LLM provider to use')
+@click.option('--llm', type=click.Choice(['mock', 'claude', 'openai', 'lmstudio', 'config', 'gemini']), default='config', help='LLM provider to use')
 @click.option('--api-key', help='Anthropic API Key', envvar='ANTHROPIC_API_KEY')
 @click.option('--v2/--v1', default=False, help='Use v2 ReAct architecture')
 @click.option('--v3', is_flag=True, help='Use v3 Multi-Agent architecture')
@@ -127,15 +127,26 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
                 orch_cfg["api_key"] = api_key or os.environ.get("DEEPSEEK_API_KEY")
             if "base_url" not in orch_cfg:
                 orch_cfg["base_url"] = "https://api.deepseek.com/v1"
-            if "model" not in orch_cfg:
-                orch_cfg["model"] = "deepseek-chat"
+            orch_cfg["model"] = "deepseek-chat"
             orch_cfg["provider"] = "openai"
+            
+        if llm == 'claude':
+            orch_cfg["provider"] = "anthropic"
+            if "api_key" not in orch_cfg:
+                orch_cfg["api_key"] = api_key or os.environ.get("ANTHROPIC_API_KEY")
+            orch_cfg["model"] = "claude-3-5-sonnet-20240620"
+        
+        if llm == 'gemini':
+            orch_cfg["provider"] = "google"
+            if "api_key" not in orch_cfg:
+                orch_cfg["api_key"] = api_key or os.environ.get("GOOGLE_API_KEY")
+            orch_cfg["model"] = "gemini-2.5-flash"
         
         if llm == 'mock':
             from asas_agent.llm.mock_react import ReActMockLLM
             orch_llm = ReActMockLLM()
         else:
-            if llm != 'config':
+            if llm != 'config' and llm not in ['openai', 'claude', 'gemini']:
                 orch_cfg["provider"] = llm
             orch_llm = create_llm(orch_cfg)
             
