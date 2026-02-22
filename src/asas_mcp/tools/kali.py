@@ -199,3 +199,31 @@ def tshark(file_path_guest: str, filter: str = "") -> str:
     if filter:
         cmd += f" -Y '{filter}'"
     return executor.execute(cmd)
+
+def pwn_cyclic(length: int, find_value: str = None) -> str:
+    """[Kali] 使用 cyclic 生成模式或查找偏移量 (Pwn必备)"""
+    ensure_package("pwntools")
+    executor = get_executor()
+    if find_value:
+        return executor.execute(f"cyclic -l {find_value}")
+    return executor.execute(f"cyclic {length}")
+
+def pwn_gdb(file_path_guest: str, commands: str) -> str:
+    """[Kali] 在 GDB/GEF 中运行程序，执行指定指令并获取输出 (Pwn必备)
+    示例 commands: "run\ninfo registers\nstack 20\nquit"
+    """
+    ensure_package("gdb")
+    executor = get_executor()
+    
+    # 将命令写入临时文件
+    job_id = str(uuid.uuid4())
+    cmd_file = f"/tmp/gdb_cmds_{job_id}.gdb"
+    executor.execute(f"echo '{commands}' > {cmd_file}")
+    
+    # 运行 gdb
+    # --batch 让 GDB 在执行完命令文件后退出
+    res = executor.execute(f"gdb -q -n -x {cmd_file} --batch '{file_path_guest}'")
+    
+    # 记录并删除命令文件
+    executor.execute(f"rm {cmd_file}")
+    return res

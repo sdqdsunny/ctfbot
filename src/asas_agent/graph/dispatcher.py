@@ -17,6 +17,7 @@ class AgentResult(BaseModel):
 from ..agents.crypto import create_crypto_agent
 from ..agents.web import create_web_agent
 from ..agents.reverse import create_reverse_agent
+from ..agents.pwn import create_pwn_agent
 from ..agents.recon import create_recon_agent
 from ..agents.writeup import create_writeup_agent
 from ..agents.memory import create_memory_agent
@@ -30,6 +31,7 @@ AGENT_CREATORS = {
     "crypto": create_crypto_agent,
     "web": create_web_agent,
     "reverse": create_reverse_agent,
+    "pwn": create_pwn_agent,
     "recon": create_recon_agent,
     "writeup": create_writeup_agent,
     "memory": create_memory_agent

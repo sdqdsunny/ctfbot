@@ -69,9 +69,34 @@ async def kali_nmap(target: str = None, args: str = "-F", target_ip: str = None)
     return kali.nmap(target, args)
 
 @tool
+def kali_upload_file(host_path: str, guest_path: str = "/tmp/") -> str:
+    """[Kali] 将宿主机的物理文件上传到 Kali 虚拟机中"""
+    return kali.upload_file(host_path, guest_path)
+
+@tool
+def kali_file(file_path_guest: str) -> str:
+    """[Kali] 在虚拟机内执行 file 命令探测文件属性"""
+    return kali.file_cmd(file_path_guest)
+
+@tool
+def kali_checksec(file_path_guest: str) -> str:
+    """[Kali] 在虚拟机内执行 checksec 检查二进制文件安全选项"""
+    return kali.checksec(file_path_guest)
+
+@tool
 def kali_exec(cmd_str: str) -> str:
     """在 Kali 虚拟机内执行任意 shell 命令"""
     return kali.get_executor().execute(cmd_str)
+
+@tool
+def kali_pwn_cyclic(length: int, find_value: str = None) -> str:
+    """[Pwn] 使用 cyclic 生成模式字符串或通过崩溃值查找偏移量"""
+    return kali.pwn_cyclic(length, find_value)
+
+@tool
+def kali_pwn_gdb(file_path_guest: str, commands: str) -> str:
+    """[Pwn] 在 Kali 虚拟机中使用 GDB/GEF 自动化运行调试指令并获取输出"""
+    return kali.pwn_gdb(file_path_guest, commands)
 
 # Recon Tools
 @tool
@@ -110,6 +135,10 @@ TOOL_WHITELIST = {
         vnc_capture_screen, vnc_mouse_click, vnc_keyboard_type, vnc_send_key
     ],
     "reverse": [reverse_ghidra.analyze_binary, misc_run_python, sandbox_execute],
+    "pwn": [
+        kali_checksec, kali_exec, kali_pwn_cyclic, kali_pwn_gdb,
+        reverse_ghidra.analyze_binary, misc_run_python, sandbox_execute
+    ],
     "recon": [recon_scan, kali_nmap, kali_exec],
     "writeup": [], # Writeup agent usually doesn't need external tools, just its state
     "memory": [] # Memory tools are often handled separately or via retrieval

@@ -57,7 +57,7 @@ def swarm_ban(node_id):
 @click.argument('input_text', required=False)
 @click.option('--url', help='CTF challenge URL for automatic fetching')
 @click.option('--token', help='CTF platform API token')
-@click.option('--llm', type=click.Choice(['mock', 'claude', 'openai', 'lmstudio', 'config', 'gemini']), default='config', help='LLM provider to use')
+@click.option('--llm', type=click.Choice(['mock', 'claude', 'openai', 'deepseek', 'lmstudio', 'config', 'gemini', 'zhipu', 'glm']), default='config', help='LLM provider to use')
 @click.option('--api-key', help='Anthropic API Key', envvar='ANTHROPIC_API_KEY')
 @click.option('--v2/--v1', default=False, help='Use v2 ReAct architecture')
 @click.option('--v3', is_flag=True, help='Use v3 Multi-Agent architecture')
@@ -108,7 +108,9 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
                 "vnc_capture_screen",
                 "vnc_mouse_click",
                 "vnc_keyboard_type",
-                "vnc_send_key"
+                "vnc_send_key",
+                "kali_pwn_cyclic",
+                "kali_pwn_gdb"
             ]
             tools = [t for t in all_tools if t.name in core_tool_names]
             
@@ -143,12 +145,27 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
             if "api_key" not in orch_cfg:
                 orch_cfg["api_key"] = api_key or os.environ.get("GOOGLE_API_KEY")
             orch_cfg["model"] = "gemini-2.5-flash"
+
+        if llm == 'deepseek':
+            orch_cfg["provider"] = "deepseek"
+            # 优先使用用户提供的 Key
+            orch_cfg["api_key"] = api_key or "REDACTED_DEEPSEEK_KEY_1"
+            if "model" not in orch_cfg:
+                orch_cfg["model"] = "deepseek-chat"
+            if "base_url" not in orch_cfg:
+                orch_cfg["base_url"] = "https://api.deepseek.com/v1"
+        
+        if llm == 'zhipu' or llm == 'glm':
+            orch_cfg["provider"] = "zhipu"
+            if "api_key" not in orch_cfg:
+                orch_cfg["api_key"] = api_key or os.environ.get("ZHIPU_API_KEY")
+            orch_cfg["model"] = "glm-4-plus"
         
         if llm == 'mock':
             from asas_agent.llm.mock_react import ReActMockLLM
             orch_llm = ReActMockLLM()
         else:
-            if llm != 'config' and llm not in ['openai', 'claude', 'gemini']:
+            if llm != 'config' and llm not in ['openai', 'claude', 'gemini', 'zhipu', 'glm', 'deepseek']:
                 orch_cfg["provider"] = llm
             orch_llm = create_llm(orch_cfg)
             

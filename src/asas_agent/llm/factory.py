@@ -248,15 +248,20 @@ def create_llm(config: Dict[str, Any]) -> Any:
         return ChatAnthropic(model=model_name, api_key=api_key, temperature=config.get("temperature", 0))
     elif provider == "openai" or provider == "deepseek":
         from langchain_openai import ChatOpenAI
-        api_key = config.get("api_key") or os.environ.get("OPENAI_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+        
+        if provider == "deepseek":
+            api_key = "REDACTED_DEEPSEEK_KEY_1"
+            base_url = "https://api.deepseek.com/v1"
+        else:
+            api_key = config.get("api_key") or os.environ.get("OPENAI_API_KEY")
+            base_url = config.get("base_url")
+
         if not api_key:
             raise ValueError(f"Missing API key for provider {provider}")
-        base_url = config.get("base_url")
-        if provider == "deepseek" and not base_url:
-            base_url = "https://api.deepseek.com/v1"
+            
         return ChatOpenAI(
             model=model_name, 
-            api_key=api_key, 
+            openai_api_key=api_key, 
             base_url=base_url,
             temperature=config.get("temperature", 0.1)
         )
@@ -268,6 +273,18 @@ def create_llm(config: Dict[str, Any]) -> Any:
             api_key=api_key,
             model_name=model_name or "gemini-2.5-flash",
             temperature=config.get("temperature", 0)
+        )
+    elif provider == "zhipu" or provider == "glm":
+        from langchain_openai import ChatOpenAI
+        api_key = config.get("api_key") or os.environ.get("ZHIPU_API_KEY")
+        if not api_key:
+            raise ValueError(f"Missing API key for provider {provider}")
+        base_url = config.get("base_url") or "https://open.bigmodel.cn/api/paas/v4/"
+        return ChatOpenAI(
+            model=model_name or "glm-4-plus",
+            api_key=api_key,
+            base_url=base_url,
+            temperature=config.get("temperature", 0.1)
         )
     elif provider == "mock":
         from .mock_react import ReActMockLLM
