@@ -70,6 +70,22 @@ typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 trio = ["trio (>=0.31.0) ; python_version < \"3.10\"", "trio (>=0.32.0) ; python_version >= \"3.10\""]
 
 [[package]]
+name = "asyncvnc"
+version = "1.3.0"
+description = "Asynchronous VNC for Python"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "asyncvnc-1.3.0-py3-none-any.whl", hash = "sha256:f4de4e858449325aefcf82a46b34befb34afdd811e20e7af9b0440192e496e74"},
+]
+
+[package.dependencies]
+cryptography = "*"
+keysymdef = "*"
+numpy = "*"
+
+[[package]]
 name = "attrs"
 version = "25.4.0"
 description = "Classes Without Boilerplate"
@@ -1358,6 +1374,17 @@ files = [
 
 [package.dependencies]
 referencing = ">=0.31.0"
+
+[[package]]
+name = "keysymdef"
+version = "1.2.0"
+description = "X11 keysym data for Python"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "keysymdef-1.2.0-py2.py3-none-any.whl", hash = "sha256:19a5c2263a861f3ff884a1f58e2b4f7efa319ffc9d11f9ba8e20129babc31a9e"},
+]
 
 [[package]]
 name = "kubernetes"
@@ -4850,4 +4877,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "09caa3f2cef562d998efbf7ea8a93aadce965d31fa75bf7a201b4452399a42d3"
+content-hash = "aa139ac2e61e0a4c701c67ad55ba6886bb6cf1147f63ea22538b9d4958ad91c9"
