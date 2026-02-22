@@ -102,7 +102,11 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
                 "kali_file",
                 "kali_checksec",
                 "reverse_ghidra_decompile",
-                "sandbox_run_python"
+                "sandbox_run_python",
+                "vnc_capture_screen",
+                "vnc_mouse_click",
+                "vnc_keyboard_type",
+                "vnc_send_key"
             ]
             tools = [t for t in all_tools if t.name in core_tool_names]
             

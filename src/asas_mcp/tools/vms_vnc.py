@@ -75,7 +75,8 @@ async def _execute_vnc_do_command(vm_name: str, commands: list) -> str:
     if "Error" in ip:
         return ip
         
-    server_address = f"{ip}:5900" 
+    # The `::` syntax ensures vncdotool interprets 5900 as a Port instead of Display number
+    server_address = f"{ip}::5900" 
     
     # Run vncdotool as a subprocess to keep the MCP server robust
     try:
