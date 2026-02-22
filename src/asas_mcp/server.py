@@ -114,15 +114,36 @@ def reverse_extract_strings(data_base64: str, min_length: int = 4) -> list:
 
 @mcp_server.tool()
 def reverse_ghidra_decompile(file_path: str) -> dict:
-    """[深度分析] 使用 Ghidra 执行自动化反编译
+    """[逆向] 使用 Ghidra 反编译二进制文件的所有用户函数，返回每个函数的名称、地址和 C 伪代码。
     
     Args:
-        file_path: 宿主机上的核心二进制文件绝对路径
+        file_path: 宿主机上的二进制文件绝对路径
         
     Returns:
-        包含所有函数及其对应 C 伪代码的字典
+        包含所有用户函数及其反编译 C 代码的字典
     """
     return reverse_ghidra.analyze_binary(file_path)
+
+@mcp_server.tool()
+def ghidra_list_functions(file_path: str) -> dict:
+    """[逆向-轻量] 快速列出二进制文件中的所有用户函数名称和地址（不反编译，速度快）。
+    适合首次侦察时使用，确定关键函数后再调用 ghidra_decompile_function 深入分析。
+    
+    Args:
+        file_path: 宿主机上的二进制文件绝对路径
+    """
+    return reverse_ghidra.list_functions(file_path)
+
+@mcp_server.tool()
+def ghidra_decompile_function(file_path: str, function_name: str) -> dict:
+    """[逆向-精准] 反编译二进制文件中指定名称的单个函数，返回其 C 伪代码。
+    需要先用 ghidra_list_functions 获取函数列表，再对目标函数调用此工具。
+    
+    Args:
+        file_path: 宿主机上的二进制文件绝对路径
+        function_name: 要反编译的目标函数名称（如 main, check_flag）
+    """
+    return reverse_ghidra.decompile_function(file_path, function_name)
 
 # --- Web Pentest Tools ---
 

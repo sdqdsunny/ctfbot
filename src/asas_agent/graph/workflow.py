@@ -204,6 +204,15 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         "3. **ACT**: Use `vnc_mouse_click(vm_name='kali', x=<X>, y=<Y>)` to click, or `vnc_keyboard_type(vm_name='kali', text='...')` to type.\n"
         "4. **VERIFY**: After each action, call `vnc_capture_screen` again to confirm the result.\n"
         "**Coordinate tips**: Top-left is (0,0). The taskbar is typically at y<30. Center of screen is roughly (640, 400).\n\n"
+        "### REVERSE ENGINEERING SOP (Binary Analysis)\n"
+        "When the task involves binary/reverse/pwn analysis:\n"
+        "1. **UPLOAD**: Use `kali_upload_file(host_path='...')` to transfer the binary to Kali.\n"
+        "2. **RECON**: Run `kali_file(file_path_guest='...')` and `kali_checksec(file_path_guest='...')` to identify architecture and protections.\n"
+        "3. **OVERVIEW**: Call `ghidra_list_functions(file_path='...')` to get a quick list of all user functions.\n"
+        "4. **DECOMPILE**: Call `ghidra_decompile_function(file_path='...', function_name='main')` to read the C pseudocode of key functions.\n"
+        "5. **ANALYZE**: Read the pseudocode carefully. Look for: XOR operations, encryption algorithms (TEA/AES/RC4), flag format checks, hardcoded keys.\n"
+        "6. **SOLVE**: Write a Python solve script and execute it with `sandbox_execute(code='...', language='python')` to decrypt/reverse the flag.\n"
+        "**Tips**: Start with `main`, then follow calls to `check_flag`, `encrypt`, `verify`, etc.\n\n"
         "指令完毕。请根据任务要求开始审计。"
     )
     

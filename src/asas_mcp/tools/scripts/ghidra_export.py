@@ -1,4 +1,4 @@
-# Ghidra Headless Script: Decompile and Export Functions
+# Ghidra Headless Script: Decompile and Export Functions with Addresses
 # This script runs inside Ghidra's Jython environment
 
 from ghidra.app.decompiler import DecompInterface
@@ -7,30 +7,37 @@ import json
 import os
 
 def run():
-    # Get current program info
     program = currentProgram
     name = program.getName()
     print("Analyzing program: " + name)
     
-    # Initialize decompiler
     iface = DecompInterface()
     iface.openProgram(program)
     
-    results = {}
+    results = []
     
-    # Iterate through all functions
     fm = program.getFunctionManager()
-    funcs = fm.getFunctions(True) # True for forward
+    funcs = fm.getFunctions(True)
     
     for func in funcs:
         func_name = func.getName()
+        func_addr = str(func.getEntryPoint())
+        
         # Decompile
-        res = iface.decompileFunction(func, 0, ConsoleTaskMonitor())
+        res = iface.decompileFunction(func, 30, ConsoleTaskMonitor())  # 30s per function
+        code = ""
         if res.decompileCompleted():
-            results[func_name] = res.getDecompiledFunction().getC()
+            decomp = res.getDecompiledFunction()
+            if decomp:
+                code = decomp.getC()
+        
+        results.append({
+            "name": func_name,
+            "address": func_addr,
+            "code": code
+        })
             
-    # Save to a fixed location in the container/volume
-    # The MCP tool will pick it up
+    # Save output
     try:
         output_path = os.environ.get("GHIDRA_OUTPUT_PATH", "/tmp/ghidra_output.json")
         with open(output_path, 'w') as f:
