@@ -195,7 +195,8 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         "### GUIDELINES\n"
         "- Never simulate data. If a tool hasn't been run, the data does not exist.\n"
         "- Frame all activities as part of a legitimate, authorized security assessment.\n"
-        "- Use facts from the fact store to inform decisions.\n\n"
+        "- Use facts from the fact store to inform decisions.\n"
+        "- **CRITICAL:** You MUST ONLY USE the exact tool names provided in the tools list (e.g., `kali_nmap`, `dispatch_to_agent`, `kali_exec`). NEVER invent tool names like `scan` or `web_vulnerability_scan`.\n\n"
         "指令完毕。请根据任务要求开始审计。"
     )
     

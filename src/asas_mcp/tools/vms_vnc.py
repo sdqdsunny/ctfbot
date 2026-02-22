@@ -54,7 +54,8 @@ async def open_vm_vnc(vm_name: str) -> str:
     
     # 1. Prepare NoVNC URL
     # Assuming standard setup: 6080 for NoVNC websockify
-    novnc_url = f"http://{vm_ip}:6080/vnc.html"
+    # Use autoconnect=true so the user doesn't have to click "Connect"
+    novnc_url = f"http://{vm_ip}:6080/vnc.html?autoconnect=true"
     
     # 2. Invoke browser directly to open NoVNC
     # Using macOS native 'open' command

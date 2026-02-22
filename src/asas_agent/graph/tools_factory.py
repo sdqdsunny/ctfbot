@@ -79,7 +79,7 @@ def platform_submit_flag(challenge_id: str, flag: str, base_url: str, token: str
 # Tool Whitellist for Agent Types
 TOOL_WHITELIST = {
     "crypto": [crypto_decode, misc_run_python, sandbox_execute],
-    "web": [web_dir_scan, web_sql_check, web_extract_links, kali_sqlmap, kali_dirsearch, kali_exec],
+    "web": [web_dir_scan, web_sql_check, web_extract_links, kali_sqlmap, kali_dirsearch, kali_exec, kali_nmap],
     "reverse": [reverse_ghidra.analyze_binary, misc_run_python, sandbox_execute],
     "recon": [recon_scan, kali_nmap, kali_exec],
     "writeup": [], # Writeup agent usually doesn't need external tools, just its state

@@ -29,9 +29,21 @@ class MCPToolClient:
                 await session.initialize()
                 print(f"DEBUG [MCPClient]: Calling {tool_name} with {arguments}")
                 result = await session.call_tool(tool_name, arguments)
-                # Assuming text result for now
                 if hasattr(result, 'content') and result.content:
-                    return result.content[0].text
+                    # Parse contents (which could be TextContent or ImageContent)
+                    langchain_content = []
+                    for item in result.content:
+                        if item.type == 'text':
+                            langchain_content.append({"type": "text", "text": item.text})
+                        elif item.type == 'image':
+                            langchain_content.append({
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{item.mimeType};base64,{item.data}"}
+                            })
+                    # If it's just one text item, return string (for backward compatibility)
+                    if len(langchain_content) == 1 and langchain_content[0]["type"] == "text":
+                        return langchain_content[0]["text"]
+                    return langchain_content
                 return str(result)
 
     async def list_tools(self) -> list:
