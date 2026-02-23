@@ -11,9 +11,10 @@ import {
     Settings,
     Globe,
     Lock,
-    Flag
+    Flag,
+    GraduationCap
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import ProviderSettings from './ProviderSettings';
 import ProcessGraph from './ProcessGraph';
 import PayloadInspector from './PayloadInspector';
@@ -31,6 +32,7 @@ export default function CommandCenter() {
     const [showSettings, setShowSettings] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [isEducationalMode, setIsEducationalMode] = useState(false);
 
     return (
         <div className="flex flex-col h-screen w-full bg-background text-foreground overflow-hidden">
@@ -46,6 +48,21 @@ export default function CommandCenter() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                    {/* Mode Toggle Button */}
+                    <button
+                        onClick={() => setIsEducationalMode(!isEducationalMode)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${isEducationalMode
+                                ? 'bg-cyber-purple/20 border-cyber-purple/50 text-cyber-purple drop-shadow-[0_0_8px_rgba(112,0,255,0.4)]'
+                                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            }`}
+                    >
+                        {isEducationalMode ? (
+                            <><GraduationCap className="w-3.5 h-3.5" /> EDU MODE</>
+                        ) : (
+                            <><Zap className="w-3.5 h-3.5" /> COMP MODE</>
+                        )}
+                    </button>
+
                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
                         {MODELS.map((model) => (
                             <button
@@ -138,7 +155,7 @@ export default function CommandCenter() {
                     </div>
                 </main>
 
-                <OrchestratorChat />
+                <OrchestratorChat isEducationalMode={isEducationalMode} />
             </div>
 
             <AnimatePresence>
@@ -146,7 +163,7 @@ export default function CommandCenter() {
                     <ProviderSettings onClose={() => setShowSettings(false)} />
                 )}
                 {selectedNodeId && (
-                    <PayloadInspector nodeId={selectedNodeId} onClose={() => setSelectedNodeId(null)} />
+                    <PayloadInspector nodeId={selectedNodeId} onClose={() => setSelectedNodeId(null)} isEducationalMode={isEducationalMode} />
                 )}
             </AnimatePresence>
         </div>

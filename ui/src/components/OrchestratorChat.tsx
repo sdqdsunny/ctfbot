@@ -6,6 +6,8 @@ import { MessageSquare, Zap, Terminal, User, Bot, Loader2 } from 'lucide-react';
 import ApprovalCard, { ApprovalData } from './chat/ApprovalCard';
 
 import { useAgentEvents, AgentEvent } from '../hooks/useAgentEvents';
+import { parseAgentMessage } from '../utils/thoughtParser';
+import ThoughtPanel from './chat/ThoughtPanel';
 
 interface Message {
     id: string;
@@ -15,7 +17,11 @@ interface Message {
     timestamp: string;
 }
 
-export default function OrchestratorChat() {
+interface OrchestratorChatProps {
+    isEducationalMode?: boolean;
+}
+
+export default function OrchestratorChat({ isEducationalMode = false }: OrchestratorChatProps) {
     const events = useAgentEvents();
     const [messages, setMessages] = useState<Message[]>([
         {
@@ -169,7 +175,16 @@ export default function OrchestratorChat() {
                                         ? 'bg-cyber-purple/10 border-cyber-purple/30 text-cyber-purple rounded-tl-none shadow-[0_0_15px_rgba(112,0,255,0.05)]'
                                         : 'bg-white/5 border-white/10 text-gray-400 italic text-[11px]'
                                     }`}>
-                                    {msg.content}
+                                    {msg.type === 'agent' ? (
+                                        <>
+                                            {isEducationalMode && parseAgentMessage(msg.content || '').thought && (
+                                                <ThoughtPanel thought={parseAgentMessage(msg.content || '').thought || ''} />
+                                            )}
+                                            <div className="whitespace-pre-wrap">{parseAgentMessage(msg.content || '').content}</div>
+                                        </>
+                                    ) : (
+                                        msg.content
+                                    )}
                                     <div className="mt-1 text-[9px] opacity-40 text-right">{msg.timestamp}</div>
                                 </div>
                             )}

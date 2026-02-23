@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Code, Terminal, FileText, ExternalLink } from 'lucide-react';
+import { X, Code, Terminal, FileText, ExternalLink, BookOpen } from 'lucide-react';
+import { analyzePayload } from '../utils/toolDictionary';
 
 interface PayloadInspectorProps {
     nodeId: string | null;
@@ -13,10 +14,20 @@ interface PayloadInspectorProps {
         logs: string;
         conclusion: string;
     };
+    isEducationalMode?: boolean;
 }
 
-export default function PayloadInspector({ nodeId, onClose, data }: PayloadInspectorProps) {
+export default function PayloadInspector({ nodeId, onClose, data, isEducationalMode = false }: PayloadInspectorProps) {
     if (!nodeId) return null;
+
+    const payloadText = data?.payload || "sqlmap -u http://10.255.1.2:81/login.php --dbs --batch";
+
+    // Simple heuristic to guess the tool from the payload string
+    let toolName = "kali_exec";
+    if (payloadText.includes('sqlmap')) toolName = 'kali_sqlmap';
+    if (payloadText.includes('nmap')) toolName = 'kali_nmap';
+
+    const analysis = analyzePayload(toolName, { command: payloadText });
 
     return (
         <AnimatePresence>
@@ -64,9 +75,37 @@ export default function PayloadInspector({ nodeId, onClose, data }: PayloadInspe
                             </button>
                         </div>
                         <div className="bg-black/60 rounded-xl p-4 border border-white/10 font-mono text-xs text-cyber-pink overflow-x-auto whitespace-pre">
-                            <code>{data?.payload || "GET /view?file=../../../../etc/passwd HTTP/1.1"}</code>
+                            <code>{payloadText}</code>
                         </div>
                     </section>
+
+                    {/* Educational Anatomy Section */}
+                    {isEducationalMode && analysis && (
+                        <div className="mt-4 border-t border-white/10 pt-4">
+                            <div className="flex items-center gap-2 mb-2 text-cyber-blue font-mono text-[11px] uppercase tracking-wider">
+                                <BookOpen className="w-3 h-3" />
+                                Tool Anatomy Room
+                            </div>
+                            <div className="bg-white/5 rounded-md p-3 border border-white/5">
+                                <h4 className="text-white text-xs font-bold mb-1">{analysis.anatomy.name}</h4>
+                                <p className="text-gray-400 text-[10px] mb-3 leading-relaxed">{analysis.anatomy.description}</p>
+
+                                {analysis.detected.length > 0 && (
+                                    <div className="space-y-2">
+                                        <div className="text-[9px] uppercase tracking-wider text-gray-500 font-bold">Detected Flags</div>
+                                        {analysis.detected.map((item, idx) => (
+                                            <div key={idx} className="flex flex-col gap-0.5">
+                                                <code className="text-[10px] text-cyber-pink font-mono bg-cyber-pink/10 px-1 py-0.5 rounded w-fit">
+                                                    {item.flag}
+                                                </code>
+                                                <span className="text-gray-400 text-[10px]">{item.meaning}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Raw Logs Section */}
                     <section className="space-y-3">
