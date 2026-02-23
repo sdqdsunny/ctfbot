@@ -43,7 +43,7 @@ export default function CommandCenter() {
                         <Cpu className="text-cyber-blue w-6 h-6" />
                     </div>
                     <h1 className="text-xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-cyber-blue to-cyber-purple">
-                        CTF-ASAS COMMAND CENTER
+                        ctfbot命令中心
                     </h1>
                 </div>
 
@@ -52,14 +52,14 @@ export default function CommandCenter() {
                     <button
                         onClick={() => setIsEducationalMode(!isEducationalMode)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${isEducationalMode
-                                ? 'bg-cyber-purple/20 border-cyber-purple/50 text-cyber-purple drop-shadow-[0_0_8px_rgba(112,0,255,0.4)]'
-                                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            ? 'bg-cyber-purple/20 border-cyber-purple/50 text-cyber-purple drop-shadow-[0_0_8px_rgba(112,0,255,0.4)]'
+                            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                             }`}
                     >
                         {isEducationalMode ? (
-                            <><GraduationCap className="w-3.5 h-3.5" /> EDU MODE</>
+                            <><GraduationCap className="w-3.5 h-3.5" /> 学习模式</>
                         ) : (
-                            <><Zap className="w-3.5 h-3.5" /> COMP MODE</>
+                            <><Zap className="w-3.5 h-3.5" /> 比赛模式</>
                         )}
                     </button>
 
