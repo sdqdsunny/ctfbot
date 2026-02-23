@@ -10,7 +10,7 @@ export function useAgentEvents() {
     const [events, setEvents] = useState<AgentEvent[]>([]);
 
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:8000/ws');
+        const ws = new WebSocket('ws://localhost:8765/ws');
 
         ws.onmessage = (event) => {
             try {

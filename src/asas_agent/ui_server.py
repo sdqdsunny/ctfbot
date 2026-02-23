@@ -203,7 +203,7 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
 
-def run_server(port: int = 8000):
+def run_server(port: int = 8765):
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
