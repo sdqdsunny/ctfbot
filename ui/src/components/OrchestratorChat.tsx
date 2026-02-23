@@ -3,13 +3,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Zap, Terminal, User, Bot, Loader2 } from 'lucide-react';
+import ApprovalCard, { ApprovalData } from './chat/ApprovalCard';
 
 import { useAgentEvents, AgentEvent } from '../hooks/useAgentEvents';
 
 interface Message {
     id: string;
-    type: 'system' | 'agent' | 'user';
-    content: string;
+    type: 'system' | 'agent' | 'user' | 'approval';
+    content?: string;
+    approvalData?: ApprovalData;
     timestamp: string;
 }
 
@@ -44,7 +46,7 @@ export default function OrchestratorChat() {
             const content = data.content as string | undefined;
             const tool_calls = data.tool_calls as Array<{ name: string, args: Record<string, unknown> }>;
 
-            const text = content ? String(content) : `Executing tools: ${tool_calls.map(t => t.name).join(', ')}`;
+            const text = content ? String(content) : `Executing tools: ${tool_calls?.map(t => t.name).join(', ')}`;
 
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setMessages(prev => [...prev, {
@@ -66,10 +68,26 @@ export default function OrchestratorChat() {
                 content: `[${tool_name}] ${is_error ? 'FAILED' : 'SUCCESS'}: ${content.substring(0, 100)}...`,
                 timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
             }]);
+        } else if (lastEvent.type === 'action_approval') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setMessages(prev => [...prev, {
+                id: lastEvent.timestamp.toString(),
+                type: 'approval',
+                approvalData: data as unknown as ApprovalData,
+                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+            }]);
+        } else if (lastEvent.type === 'system_message') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setMessages(prev => [...prev, {
+                id: lastEvent.timestamp.toString(),
+                type: 'system',
+                content: String(data.content),
+                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+            }]);
         }
     }, [events]);
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (!inputValue.trim()) return;
 
         const userMsg: Message = {
@@ -83,10 +101,29 @@ export default function OrchestratorChat() {
         setInputValue('');
         setIsTyping(true);
 
-        // Note: Future integration can send this back via WebSocket or REST
-        setTimeout(() => {
+        try {
+            await fetch('http://localhost:8010/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMsg.content })
+            });
+        } catch (error) {
+            console.error('Failed to send message:', error);
+        } finally {
             setIsTyping(false);
-        }, 5000);
+        }
+    };
+
+    const handleApprovalDecision = async (action_id: string, approved: boolean, feedback?: string) => {
+        try {
+            await fetch('http://localhost:8010/api/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action_id, approved, feedback })
+            });
+        } catch (error) {
+            console.error('Failed to send approval:', error);
+        }
     };
 
     return (
@@ -114,20 +151,28 @@ export default function OrchestratorChat() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             className={`flex flex-col gap-1.5 ${msg.type === 'user' ? 'items-end' : 'items-start'}`}
                         >
-                            <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${msg.type === 'user' ? 'text-cyber-blue flex-row-reverse' : msg.type === 'agent' ? 'text-cyber-purple' : 'text-gray-500'
+                            <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${msg.type === 'user' ? 'text-cyber-blue flex-row-reverse' : msg.type === 'agent' ? 'text-cyber-purple' : msg.type === 'approval' ? 'text-amber-500' : 'text-gray-500'
                                 }`}>
                                 {msg.type === 'user' ? <User className="w-3 h-3" /> : msg.type === 'agent' ? <Bot className="w-3 h-3" /> : <Terminal className="w-3 h-3" />}
                                 {msg.type}
                             </div>
-                            <div className={`p-3 rounded-2xl text-xs font-mono leading-relaxed max-w-[90%] border ${msg.type === 'user'
-                                ? 'bg-cyber-blue/10 border-cyber-blue/30 text-cyber-blue rounded-tr-none'
-                                : msg.type === 'agent'
-                                    ? 'bg-cyber-purple/10 border-cyber-purple/30 text-cyber-purple rounded-tl-none shadow-[0_0_15px_rgba(112,0,255,0.05)]'
-                                    : 'bg-white/5 border-white/10 text-gray-400 font-italic text-[11px]'
-                                }`}>
-                                {msg.content}
-                                <div className="mt-1 text-[9px] opacity-40 text-right">{msg.timestamp}</div>
-                            </div>
+
+                            {msg.type === 'approval' && msg.approvalData ? (
+                                <ApprovalCard
+                                    data={msg.approvalData}
+                                    onDecision={(approved, feedback) => handleApprovalDecision(msg.approvalData!.action_id, approved, feedback)}
+                                />
+                            ) : (
+                                <div className={`p-3 rounded-2xl text-xs font-mono leading-relaxed max-w-[90%] border ${msg.type === 'user'
+                                    ? 'bg-cyber-blue/10 border-cyber-blue/30 text-cyber-blue rounded-tr-none'
+                                    : msg.type === 'agent'
+                                        ? 'bg-cyber-purple/10 border-cyber-purple/30 text-cyber-purple rounded-tl-none shadow-[0_0_15px_rgba(112,0,255,0.05)]'
+                                        : 'bg-white/5 border-white/10 text-gray-400 italic text-[11px]'
+                                    }`}>
+                                    {msg.content}
+                                    <div className="mt-1 text-[9px] opacity-40 text-right">{msg.timestamp}</div>
+                                </div>
+                            )}
                         </motion.div>
                     ))}
                 </AnimatePresence>

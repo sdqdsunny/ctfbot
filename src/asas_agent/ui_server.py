@@ -79,6 +79,41 @@ async def receive_event(payload: EventPayload):
     })
     return {"status": "success"}
 
+class ChatMessage(BaseModel):
+    message: str
+
+@app.post("/api/chat")
+async def receive_chat(payload: ChatMessage):
+    # TODO: In future, this will interrupt/feed the Agent's reasoning loop.
+    # For now, echo it back as a system message to verify UI integration.
+    await manager.broadcast({
+        "type": "system_message",
+        "data": {
+            "content": f"User instruction received: {payload.message}",
+            "level": "info"
+        }
+    })
+    return {"status": "success"}
+
+class ApprovalResponse(BaseModel):
+    action_id: str
+    approved: bool
+    feedback: str = ""
+
+@app.post("/api/approve")
+async def receive_approval(payload: ApprovalResponse):
+    # TODO: In future, this will resume the Agent's LangGraph node execution.
+    # For now, echo it back to verify the UI interaction.
+    decision = "APPROVED" if payload.approved else "REJECTED"
+    await manager.broadcast({
+        "type": "system_message",
+        "data": {
+            "content": f"Action {payload.action_id} {decision}. Feedback: {payload.feedback}",
+            "level": "warning" if not payload.approved else "success"
+        }
+    })
+    return {"status": "success"}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
