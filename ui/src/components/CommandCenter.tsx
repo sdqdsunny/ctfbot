@@ -93,7 +93,7 @@ export default function CommandCenter() {
                     <div className="space-y-4">
                         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2">Mission Control</h2>
                         <div className="space-y-1">
-                            {['Binary Exploit', 'Web Security', 'Cryptography', 'Reverse'].map((cat) => (
+                            {['PWN', 'Web', 'Crypto', 'Reverse', 'MISC', 'IoT', 'Mobile'].map((cat) => (
                                 <button key={cat} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all group">
                                     <Shield className="w-4 h-4 group-hover:text-cyber-blue" />
                                     {cat}
