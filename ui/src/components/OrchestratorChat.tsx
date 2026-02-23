@@ -28,12 +28,22 @@ export default function OrchestratorChat({ isEducationalMode = false }: Orchestr
             id: '1',
             type: 'system',
             content: 'Command Center Online. Orchestrator ready for instructions.',
-            timestamp: new Date().toLocaleTimeString()
+            timestamp: '' // Empty initial timestamp to avoid SSR hydration mismatch
         }
     ]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+    useEffect(() => {
+        // Hydrate the initial message timestamp only on the client
+        setMessages(prev => prev.map(msg =>
+            msg.id === '1' && msg.timestamp === ''
+                ? { ...msg, timestamp: new Date().toLocaleTimeString() }
+                : msg
+        ));
+    }, []);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -93,36 +103,37 @@ export default function OrchestratorChat({ isEducationalMode = false }: Orchestr
         }
     }, [events]);
 
-    const handleSendMessage = async () => {
+    const handleSendMessage = () => {
         if (!inputValue.trim()) return;
 
-        const userMsg: Message = {
+        const newUserMessage: Message = {
             id: Date.now().toString(),
             type: 'user',
             content: inputValue,
             timestamp: new Date().toLocaleTimeString()
         };
 
-        setMessages(prev => [...prev, userMsg]);
+        setMessages(prev => [...prev, newUserMessage]);
         setInputValue('');
         setIsTyping(true);
 
-        try {
-            await fetch('http://localhost:8010/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMsg.content })
+        const payload = { message: inputValue };
+
+        fetch('http://localhost:8765/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.json())
+            .catch(err => {
+                console.error("Failed to send chat", err);
+                setIsTyping(false);
             });
-        } catch (error) {
-            console.error('Failed to send message:', error);
-        } finally {
-            setIsTyping(false);
-        }
     };
 
     const handleApprovalDecision = async (action_id: string, approved: boolean, feedback?: string) => {
         try {
-            await fetch('http://localhost:8010/api/approve', {
+            await fetch('http://localhost:8765/api/approve', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action_id, approved, feedback })
