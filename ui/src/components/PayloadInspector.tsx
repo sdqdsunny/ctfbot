@@ -4,6 +4,8 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Code, Terminal, FileText, ExternalLink, BookOpen } from 'lucide-react';
 import { analyzePayload } from '../utils/toolDictionary';
+import { AgentEvent } from '../hooks/useAgentEvents';
+import { useGraphData } from '../hooks/useGraphData';
 
 interface PayloadInspectorProps {
     nodeId: string | null;
@@ -14,13 +16,20 @@ interface PayloadInspectorProps {
         logs: string;
         conclusion: string;
     };
+    events?: AgentEvent[];
     isEducationalMode?: boolean;
 }
 
-export default function PayloadInspector({ nodeId, onClose, data, isEducationalMode = false }: PayloadInspectorProps) {
+export default function PayloadInspector({ nodeId, onClose, data, events = [], isEducationalMode = false }: PayloadInspectorProps) {
+    const { stepData } = useGraphData(events);
+
     if (!nodeId) return null;
 
-    const payloadText = data?.payload || "sqlmap -u http://10.255.1.2:81/login.php --dbs --batch";
+    // Use live step data if available, otherwise fallback to prop data (or mock)
+    const liveData = stepData[nodeId] || data;
+    const payloadText = liveData?.payload || "No payload generated yet.";
+    const stepLogs = liveData?.logs || "Waiting for execution logs...";
+    const stepConclusion = liveData?.conclusion || "Waiting for agent reasoning conclusion...";
 
     // Simple heuristic to guess the tool from the payload string
     let toolName = "kali_exec";
@@ -60,7 +69,7 @@ export default function PayloadInspector({ nodeId, onClose, data, isEducationalM
                             <FileText className="w-4 h-4" /> REASONING CONCLUSION
                         </div>
                         <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-sm leading-relaxed text-gray-300 italic">
-                            {data?.conclusion || "Based on the observed directory structure, a potential directory traversal vulnerability exists... (Mock Data)"}
+                            {stepConclusion}
                         </div>
                     </section>
 
@@ -108,17 +117,12 @@ export default function PayloadInspector({ nodeId, onClose, data, isEducationalM
                     )}
 
                     {/* Raw Logs Section */}
-                    <section className="space-y-3">
+                    <section className="space-y-3 pb-8">
                         <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
                             <Terminal className="w-4 h-4" /> RAW EXECUTION LOGS
                         </div>
                         <div className="bg-black/80 rounded-xl p-4 border border-white/5 font-mono text-[10px] text-emerald-500 h-64 overflow-y-auto whitespace-pre-wrap">
-                            {data?.logs || `[DEBUG] Sending request to target...
-[INFO] Status: 200 OK
-[INFO] Content-Length: 1024
-[SUCCESS] File read successful. Root user found at line 1.
-root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin`}
+                            {stepLogs}
                         </div>
                     </section>
                 </div>

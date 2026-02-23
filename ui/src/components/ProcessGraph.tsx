@@ -14,7 +14,10 @@ import ReactFlow, {
     Connection
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import 'reactflow/dist/style.css';
 import AgentNode from './graph/AgentNode';
+import { AgentEvent } from '../hooks/useAgentEvents';
+import { useGraphData } from '../hooks/useGraphData';
 
 const nodeTypes = {
     agent: AgentNode,
@@ -92,12 +95,21 @@ const initialEdges: Edge[] = [
 ];
 
 interface ProcessGraphProps {
+    events?: AgentEvent[];
     onNodeSelect?: (nodeId: string | null) => void;
 }
 
-export default function ProcessGraph({ onNodeSelect }: ProcessGraphProps) {
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+export default function ProcessGraph({ events = [], onNodeSelect }: ProcessGraphProps) {
+    const { nodes: derivedNodes, edges: derivedEdges } = useGraphData(events);
+
+    const [nodes, setNodes, onNodesChange] = useNodesState(derivedNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(derivedEdges);
+
+    // Sync state when derived data changes
+    React.useEffect(() => {
+        setNodes(derivedNodes);
+        setEdges(derivedEdges);
+    }, [derivedNodes, derivedEdges, setNodes, setEdges]);
 
     const onConnect = useCallback(
         (params: Connection) => setEdges((eds) => addEdge({

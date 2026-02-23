@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Zap, Terminal, User, Bot, Loader2 } from 'lucide-react';
 import ApprovalCard, { ApprovalData } from './chat/ApprovalCard';
 
-import { useAgentEvents, AgentEvent } from '../hooks/useAgentEvents';
+import { AgentEvent } from '../hooks/useAgentEvents';
 import { parseAgentMessage } from '../utils/thoughtParser';
 import ThoughtPanel from './chat/ThoughtPanel';
 
@@ -19,10 +19,10 @@ interface Message {
 
 interface OrchestratorChatProps {
     isEducationalMode?: boolean;
+    events?: AgentEvent[];
 }
 
-export default function OrchestratorChat({ isEducationalMode = false }: OrchestratorChatProps) {
-    const events = useAgentEvents();
+export default function OrchestratorChat({ isEducationalMode = false, events = [] }: OrchestratorChatProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
@@ -35,14 +35,16 @@ export default function OrchestratorChat({ isEducationalMode = false }: Orchestr
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
     useEffect(() => {
         // Hydrate the initial message timestamp only on the client
-        setMessages(prev => prev.map(msg =>
-            msg.id === '1' && msg.timestamp === ''
-                ? { ...msg, timestamp: new Date().toLocaleTimeString() }
-                : msg
-        ));
+        const timer = setTimeout(() => {
+            setMessages(prev => prev.map(msg =>
+                msg.id === '1' && msg.timestamp === ''
+                    ? { ...msg, timestamp: new Date().toLocaleTimeString() }
+                    : msg
+            ));
+        }, 0);
+        return () => clearTimeout(timer);
     }, []);
 
     useEffect(() => {
@@ -64,42 +66,50 @@ export default function OrchestratorChat({ isEducationalMode = false }: Orchestr
 
             const text = content ? String(content) : `Executing tools: ${tool_calls?.map(t => t.name).join(', ')}`;
 
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setMessages(prev => [...prev, {
-                id: lastEvent.timestamp.toString(),
-                type: 'agent',
-                content: text,
-                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
-            }]);
-            setIsTyping(false);
+            setTimeout(() => {
+                setMessages(prev => [...prev, {
+                    id: lastEvent.timestamp.toString(),
+                    type: 'agent',
+                    content: text,
+                    timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+                }]);
+                setIsTyping(false);
+            }, 0);
         } else if (lastEvent.type === 'tool_result') {
             const tool_name = data.tool_name as string;
             const content = String(data.content);
             const is_error = Boolean(data.is_error);
 
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setMessages(prev => [...prev, {
-                id: lastEvent.timestamp.toString(),
-                type: 'system',
-                content: `[${tool_name}] ${is_error ? 'FAILED' : 'SUCCESS'}: ${content.substring(0, 100)}...`,
-                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
-            }]);
+            setTimeout(() => {
+                setMessages(prev => [...prev, {
+                    id: lastEvent.timestamp.toString(),
+                    type: is_error ? 'system' : 'agent',
+                    content: `[${tool_name}] ${is_error ? 'Failed' : 'Success'}:\n${content}`,
+                    timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+                }]);
+            }, 0);
         } else if (lastEvent.type === 'action_approval') {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setMessages(prev => [...prev, {
-                id: lastEvent.timestamp.toString(),
-                type: 'approval',
-                approvalData: data as unknown as ApprovalData,
-                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
-            }]);
+
+            setTimeout(() => {
+                setMessages(prev => [...prev, {
+                    id: lastEvent.timestamp.toString(),
+                    type: 'approval',
+                    approvalData: data as unknown as ApprovalData,
+                    timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+                }]);
+            }, 0);
         } else if (lastEvent.type === 'system_message') {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setMessages(prev => [...prev, {
-                id: lastEvent.timestamp.toString(),
-                type: 'system',
-                content: String(data.content),
-                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
-            }]);
+            const content = String(data.content);
+            const level = data.level as string || 'info';
+            const is_user_facing = Boolean(data.is_user_facing);
+            setTimeout(() => {
+                setMessages(prev => [...prev, {
+                    id: lastEvent.timestamp.toString(),
+                    type: is_user_facing ? 'system' : 'agent',
+                    content: `[${level.toUpperCase()}] ${content}`,
+                    timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+                }]);
+            }, 0);
         }
     }, [events]);
 

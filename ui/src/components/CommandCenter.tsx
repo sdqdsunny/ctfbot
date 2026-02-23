@@ -11,11 +11,16 @@ import {
     Settings,
     Globe,
     Lock,
+    User,
+    Bot,
+    Loader2,
     Flag,
     GraduationCap
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
+import ApprovalCard, { ApprovalData } from './chat/ApprovalCard';
 import ProviderSettings from './ProviderSettings';
+import { useAgentEvents, AgentEvent } from '../hooks/useAgentEvents';
 import ProcessGraph from './ProcessGraph';
 import PayloadInspector from './PayloadInspector';
 import OrchestratorChat from './OrchestratorChat';
@@ -68,6 +73,8 @@ export default function CommandCenter() {
             alert('🚫 无法连接到 UI Server。请确保后端服务 (ui_server.py) 已在端口 8000 启动。');
         }
     };
+
+    const events = useAgentEvents();
 
     return (
         <div className="flex flex-col h-screen w-full bg-background text-foreground overflow-hidden">
@@ -182,7 +189,7 @@ export default function CommandCenter() {
                     <div className="flex-1 flex items-center justify-center overflow-hidden">
                         {isAnalyzing ? (
                             <div className="w-full h-full relative">
-                                <ProcessGraph onNodeSelect={setSelectedNodeId} />
+                                <ProcessGraph events={events} onNodeSelect={setSelectedNodeId} />
                             </div>
                         ) : (
                             <div className="text-center opacity-20 group cursor-default">
@@ -193,7 +200,7 @@ export default function CommandCenter() {
                     </div>
                 </main>
 
-                <OrchestratorChat isEducationalMode={isEducationalMode} />
+                <OrchestratorChat isEducationalMode={isEducationalMode} events={events} />
             </div>
 
             <AnimatePresence>
@@ -201,7 +208,12 @@ export default function CommandCenter() {
                     <ProviderSettings onClose={() => setShowSettings(false)} />
                 )}
                 {selectedNodeId && (
-                    <PayloadInspector nodeId={selectedNodeId} onClose={() => setSelectedNodeId(null)} isEducationalMode={isEducationalMode} />
+                    <PayloadInspector
+                        nodeId={selectedNodeId}
+                        events={events}
+                        onClose={() => setSelectedNodeId(null)}
+                        isEducationalMode={isEducationalMode}
+                    />
                 )}
             </AnimatePresence>
         </div>
