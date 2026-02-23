@@ -40,6 +40,8 @@ black = "^23.0.0"
 isort = "^5.0.0"
 mypy = "^1.0.0"
 pyinstaller = "^6.18.0"
+httpx = "<0.28.0"
+responses = "^0.26.0"
 
 [build-system]
 requires = ["poetry-core"]

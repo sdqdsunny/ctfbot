@@ -183,21 +183,37 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
         print(f"🚀 Starting v3 Multi-Agent Mission: {initial_msg}")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         
+        from asas_agent.utils.ui_emitter import ui_emitter
+
         async for event in app.astream(state, config={"recursion_limit": 100}):
             if not isinstance(event, dict):
                 continue
             for key, value in event.items():
                 if key == "orchestrator":
                     msg = value["messages"][-1]
+                    tools_used = []
                     if msg.tool_calls:
                         for tc in msg.tool_calls:
+                            tools_used.append({"name": tc["name"], "args": tc.get("args", {})})
                             print(f"👑 指挥官决策: 调用工具 {tc['name']}")
                             print(f"   目标/参数: {tc['args'].get('agent_type') or tc['args']}")
                     else:
                         print(f"💡 最终报告: {msg.content}")
+                        
+                    ui_emitter.emit("orchestrator_message", {
+                        "content": msg.content,
+                        "tool_calls": tools_used
+                    })
                 elif key == "tools":
                     for msg in value["messages"]:
-                        print(f"📥 代理返回 ({msg.name}): {str(msg.content)[:150]}...")
+                        content_str = str(msg.content)[:500]
+                        print(f"📥 代理返回 ({msg.name}): {content_str[:150]}...")
+                        
+                        ui_emitter.emit("tool_result", {
+                            "tool_name": msg.name,
+                            "content": content_str,
+                            "is_error": "Error:" in content_str or "Failed" in content_str
+                        })
                         
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("✅ v3 Mission Complete")

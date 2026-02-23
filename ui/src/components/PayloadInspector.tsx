@@ -15,7 +15,7 @@ interface PayloadInspectorProps {
     };
 }
 
-export default function PayloadInspector({ nodeId, onClose, data }: PayloadInspectorProps) {
+export default function PayloadInspector({ nodeId, onClose }: PayloadInspectorProps) {
     if (!nodeId) return null;
 
     return (
@@ -49,7 +49,7 @@ export default function PayloadInspector({ nodeId, onClose, data }: PayloadInspe
                             <FileText className="w-4 h-4" /> REASONING CONCLUSION
                         </div>
                         <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-sm leading-relaxed text-gray-300 italic">
-                            "Based on the observed directory structure, a potential directory traversal vulnerability exists in the /view?file= parameter. Attempting to read /etc/passwd..."
+                            &quot;Based on the observed directory structure, a potential directory traversal vulnerability exists in the /view?file= parameter. Attempting to read /etc/passwd...&quot;
                         </div>
                     </section>
 

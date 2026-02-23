@@ -64,6 +64,21 @@ async def update_config(provider_id: str, data: dict):
     success = config_manager.update_provider(provider_id, data)
     return {"status": "success" if success else "failed"}
 
+from pydantic import BaseModel
+
+class EventPayload(BaseModel):
+    type: str
+    data: dict
+
+@app.post("/api/events")
+async def receive_event(payload: EventPayload):
+    # Broadcast to all connected WebSockets
+    await manager.broadcast({
+        "type": payload.type,
+        "data": payload.data
+    })
+    return {"status": "success"}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)

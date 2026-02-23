@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Zap, Terminal, User, Bot, Loader2 } from 'lucide-react';
 
+import { useAgentEvents, AgentEvent } from '../hooks/useAgentEvents';
+
 interface Message {
     id: string;
     type: 'system' | 'agent' | 'user';
@@ -12,6 +14,7 @@ interface Message {
 }
 
 export default function OrchestratorChat() {
+    const events = useAgentEvents();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
@@ -30,6 +33,42 @@ export default function OrchestratorChat() {
         }
     }, [messages]);
 
+    useEffect(() => {
+        if (events.length === 0) return;
+        const lastEvent = events[events.length - 1];
+
+        // Define simple typing for the payload to satisfy TS
+        const data = lastEvent.data as Record<string, unknown>;
+
+        if (lastEvent.type === 'orchestrator_message') {
+            const content = data.content as string | undefined;
+            const tool_calls = data.tool_calls as Array<{ name: string, args: Record<string, unknown> }>;
+
+            const text = content ? String(content) : `Executing tools: ${tool_calls.map(t => t.name).join(', ')}`;
+
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setMessages(prev => [...prev, {
+                id: lastEvent.timestamp.toString(),
+                type: 'agent',
+                content: text,
+                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+            }]);
+            setIsTyping(false);
+        } else if (lastEvent.type === 'tool_result') {
+            const tool_name = data.tool_name as string;
+            const content = String(data.content);
+            const is_error = Boolean(data.is_error);
+
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setMessages(prev => [...prev, {
+                id: lastEvent.timestamp.toString(),
+                type: 'system',
+                content: `[${tool_name}] ${is_error ? 'FAILED' : 'SUCCESS'}: ${content.substring(0, 100)}...`,
+                timestamp: new Date(lastEvent.timestamp).toLocaleTimeString()
+            }]);
+        }
+    }, [events]);
+
     const handleSendMessage = () => {
         if (!inputValue.trim()) return;
 
@@ -44,17 +83,10 @@ export default function OrchestratorChat() {
         setInputValue('');
         setIsTyping(true);
 
-        // 模拟后端响应
+        // Note: Future integration can send this back via WebSocket or REST
         setTimeout(() => {
-            const agentMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                type: 'agent',
-                content: `Acknowledged command: "${inputValue}". Adjusting tactical approach...`,
-                timestamp: new Date().toLocaleTimeString()
-            };
-            setMessages(prev => [...prev, agentMsg]);
             setIsTyping(false);
-        }, 1000);
+        }, 5000);
     };
 
     return (
@@ -88,10 +120,10 @@ export default function OrchestratorChat() {
                                 {msg.type}
                             </div>
                             <div className={`p-3 rounded-2xl text-xs font-mono leading-relaxed max-w-[90%] border ${msg.type === 'user'
-                                    ? 'bg-cyber-blue/10 border-cyber-blue/30 text-cyber-blue rounded-tr-none'
-                                    : msg.type === 'agent'
-                                        ? 'bg-cyber-purple/10 border-cyber-purple/30 text-cyber-purple rounded-tl-none shadow-[0_0_15px_rgba(112,0,255,0.05)]'
-                                        : 'bg-white/5 border-white/10 text-gray-400 font-italic text-[11px]'
+                                ? 'bg-cyber-blue/10 border-cyber-blue/30 text-cyber-blue rounded-tr-none'
+                                : msg.type === 'agent'
+                                    ? 'bg-cyber-purple/10 border-cyber-purple/30 text-cyber-purple rounded-tl-none shadow-[0_0_15px_rgba(112,0,255,0.05)]'
+                                    : 'bg-white/5 border-white/10 text-gray-400 font-italic text-[11px]'
                                 }`}>
                                 {msg.content}
                                 <div className="mt-1 text-[9px] opacity-40 text-right">{msg.timestamp}</div>

@@ -11,8 +11,7 @@ const PROVIDERS = [
 ];
 
 export default function ProviderSettings({ onClose }: { onClose: () => void }) {
-    const [configs, setConfigs] = useState<any>({});
-    const [loading, setLoading] = useState(true);
+    const [configs, setConfigs] = useState<Record<string, { hasKey?: boolean, model?: string }>>({});
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -20,7 +19,6 @@ export default function ProviderSettings({ onClose }: { onClose: () => void }) {
             .then(res => res.json())
             .then(data => {
                 setConfigs(data);
-                setLoading(false);
             });
     }, []);
 
