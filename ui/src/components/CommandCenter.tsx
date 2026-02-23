@@ -126,8 +126,8 @@ export default function CommandCenter() {
                     {/* Visualization Area */}
                     <div className="flex-1 flex items-center justify-center overflow-hidden">
                         {isAnalyzing ? (
-                            <div className="w-full h-full relative" onClick={() => setSelectedNodeId('node-1')}>
-                                <ProcessGraph />
+                            <div className="w-full h-full relative">
+                                <ProcessGraph onNodeSelect={setSelectedNodeId} />
                             </div>
                         ) : (
                             <div className="text-center opacity-20 group cursor-default">

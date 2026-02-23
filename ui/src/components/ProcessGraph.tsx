@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import ReactFlow, {
     Background,
     Controls,
@@ -14,20 +14,88 @@ import ReactFlow, {
     Connection
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import AgentNode from './graph/AgentNode';
+
+const nodeTypes = {
+    agent: AgentNode,
+};
 
 const initialNodes: Node[] = [
     {
-        id: 'start',
-        position: { x: 50, y: 150 },
-        data: { label: 'Target Acquired' },
-        type: 'input',
-        style: { background: '#00f2ff20', color: '#00f2ff', border: '1px solid #00f2ff50', borderRadius: '12px' }
+        id: '1',
+        type: 'agent',
+        position: { x: 250, y: 50 },
+        data: {
+            label: 'ReAct Orchestrator',
+            agentType: 'orchestrator',
+            status: 'success',
+            details: 'Delegating to Web Agent'
+        }
     },
+    {
+        id: '2',
+        type: 'agent',
+        position: { x: 100, y: 200 },
+        data: {
+            label: 'Web Agent',
+            agentType: 'worker',
+            status: 'running',
+            details: 'Executing nmap -sV target'
+        }
+    },
+    {
+        id: '3',
+        type: 'agent',
+        position: { x: 400, y: 200 },
+        data: {
+            label: 'Crypto Agent',
+            agentType: 'worker',
+            status: 'pending',
+            details: 'Awaiting tasks'
+        }
+    },
+    {
+        id: '4',
+        type: 'agent',
+        position: { x: 100, y: 350 },
+        data: {
+            label: 'Tool Execution',
+            agentType: 'system',
+            status: 'error',
+            details: 'Connection refused on port 80'
+        }
+    }
 ];
 
-const initialEdges: Edge[] = [];
+const initialEdges: Edge[] = [
+    {
+        id: 'e1-2',
+        source: '1',
+        target: '2',
+        animated: true,
+        style: { stroke: '#00f2ff', strokeWidth: 2 }
+    },
+    {
+        id: 'e1-3',
+        source: '1',
+        target: '3',
+        animated: false,
+        style: { stroke: '#334155', strokeWidth: 1, strokeDasharray: '5 5' }
+    },
+    {
+        id: 'e2-4',
+        source: '2',
+        target: '4',
+        animated: true,
+        style: { stroke: '#f43f5e', strokeWidth: 2 }
+    }
+];
 
-export default function ProcessGraph() {
+interface ProcessGraphProps {
+    onNodeSelect?: (nodeId: string | null) => void;
+}
+
+export default function ProcessGraph({ onNodeSelect }: ProcessGraphProps) {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -35,11 +103,23 @@ export default function ProcessGraph() {
         (params: Connection) => setEdges((eds) => addEdge({
             ...params,
             animated: true,
-            style: { stroke: '#7000ff' },
+            style: { stroke: '#7000ff', strokeWidth: 2 },
             markerEnd: { type: MarkerType.ArrowClosed, color: '#7000ff' }
         }, eds)),
         [setEdges]
     );
+
+    const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+        if (onNodeSelect) {
+            onNodeSelect(node.id);
+        }
+    }, [onNodeSelect]);
+
+    const handlePaneClick = useCallback(() => {
+        if (onNodeSelect) {
+            onNodeSelect(null);
+        }
+    }, [onNodeSelect]);
 
     return (
         <div className="w-full h-full bg-[#0b0e14]">
@@ -49,43 +129,51 @@ export default function ProcessGraph() {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                onNodeClick={handleNodeClick}
+                onPaneClick={handlePaneClick}
+                nodeTypes={nodeTypes}
                 fitView
                 className="cyber-graph"
+                defaultEdgeOptions={{
+                    style: { stroke: '#7000ff', strokeWidth: 2 },
+                    markerEnd: { type: MarkerType.ArrowClosed, color: '#7000ff' }
+                }}
             >
-                <Background color="#1a1f26" gap={20} />
+                <Background color="#1a1f26" gap={20} size={2} />
                 <Controls showInteractive={false} className="glass-panel" />
                 <MiniMap
-                    nodeColor={(n) => (n.type === 'input' ? '#00f2ff' : '#7000ff')}
+                    nodeColor={(n) => {
+                        if (n.data?.status === 'running') return '#00f2ff';
+                        if (n.data?.status === 'success') return '#10b981';
+                        if (n.data?.status === 'error') return '#f43f5e';
+                        return '#64748b';
+                    }}
                     maskColor="rgba(11, 14, 20, 0.7)"
                     className="glass-panel rounded-xl"
                 />
             </ReactFlow>
             <style jsx global>{`
-        .react-flow__node {
-          font-family: 'Inter', sans-serif;
-          font-size: 12px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          padding: 10px;
-          box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
-        }
-        .react-flow__handle {
-          background: #7000ff;
-          width: 8px;
-          height: 8px;
-          border: 2px solid #0b0e14;
-        }
-        .react-flow__controls button {
-          background: rgba(255, 255, 255, 0.05);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          color: #94a3b8;
-        }
-        .react-flow__controls button:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-        }
-      `}</style>
+                /* Cyberpunk animated edge (flowing dash effect) */
+                .react-flow__edge-path {
+                    stroke-dasharray: 10;
+                    animation: dashdraw 1s linear infinite;
+                }
+                
+                @keyframes dashdraw {
+                    from { stroke-dashoffset: 20; }
+                    to { stroke-dashoffset: 0; }
+                }
+
+                .react-flow__controls button {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    color: #94a3b8;
+                }
+                .react-flow__controls button:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                }
+            `}</style>
         </div>
     );
 }

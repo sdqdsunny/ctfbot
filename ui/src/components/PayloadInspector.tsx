@@ -15,7 +15,7 @@ interface PayloadInspectorProps {
     };
 }
 
-export default function PayloadInspector({ nodeId, onClose }: PayloadInspectorProps) {
+export default function PayloadInspector({ nodeId, onClose, data }: PayloadInspectorProps) {
     if (!nodeId) return null;
 
     return (
@@ -49,7 +49,7 @@ export default function PayloadInspector({ nodeId, onClose }: PayloadInspectorPr
                             <FileText className="w-4 h-4" /> REASONING CONCLUSION
                         </div>
                         <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-sm leading-relaxed text-gray-300 italic">
-                            &quot;Based on the observed directory structure, a potential directory traversal vulnerability exists in the /view?file= parameter. Attempting to read /etc/passwd...&quot;
+                            {data?.conclusion || "Based on the observed directory structure, a potential directory traversal vulnerability exists... (Mock Data)"}
                         </div>
                     </section>
 
@@ -64,7 +64,7 @@ export default function PayloadInspector({ nodeId, onClose }: PayloadInspectorPr
                             </button>
                         </div>
                         <div className="bg-black/60 rounded-xl p-4 border border-white/10 font-mono text-xs text-cyber-pink overflow-x-auto whitespace-pre">
-                            <code>GET /view?file=../../../../etc/passwd HTTP/1.1</code>
+                            <code>{data?.payload || "GET /view?file=../../../../etc/passwd HTTP/1.1"}</code>
                         </div>
                     </section>
 
@@ -73,13 +73,13 @@ export default function PayloadInspector({ nodeId, onClose }: PayloadInspectorPr
                         <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
                             <Terminal className="w-4 h-4" /> RAW EXECUTION LOGS
                         </div>
-                        <div className="bg-black/80 rounded-xl p-4 border border-white/5 font-mono text-[10px] text-emerald-500 h-64 overflow-y-auto">
-                            [DEBUG] Sending request to target...<br />
-                            [INFO] Status: 200 OK<br />
-                            [INFO] Content-Length: 1024<br />
-                            [SUCCESS] File read successful. Root user found at line 1.<br />
-                            root:x:0:0:root:/root:/bin/bash<br />
-                            daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+                        <div className="bg-black/80 rounded-xl p-4 border border-white/5 font-mono text-[10px] text-emerald-500 h-64 overflow-y-auto whitespace-pre-wrap">
+                            {data?.logs || `[DEBUG] Sending request to target...
+[INFO] Status: 200 OK
+[INFO] Content-Length: 1024
+[SUCCESS] File read successful. Root user found at line 1.
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin`}
                         </div>
                     </section>
                 </div>
