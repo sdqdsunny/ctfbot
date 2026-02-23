@@ -64,6 +64,7 @@ async def update_config(provider_id: str, data: dict):
     success = config_manager.update_provider(provider_id, data)
     return {"status": "success" if success else "failed"}
 
+from fastapi import BackgroundTasks
 from pydantic import BaseModel
 
 class EventPayload(BaseModel):
@@ -107,6 +108,52 @@ async def get_pending_chats():
     chats = _pending_chats.copy()
     _pending_chats.clear()
     return {"chats": chats}
+
+class AnalyzeRequest(BaseModel):
+    url: str
+    model: str = "config"
+
+async def run_agent_process(url: str, model: str):
+    logger.info(f"Starting background agent process for {url} using {model}")
+    
+    # Simulate CLI execution
+    cmd = [
+        "poetry", "run", "python", "-m", "src.asas_agent", 
+        "--url", url, 
+        "--llm", model, 
+        "--v3"
+    ]
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        await process.communicate()
+        
+        await manager.broadcast({
+            "type": "system_message",
+            "data": {
+                "content": f"🎯 Agent Analysis Process Terminated for {url}",
+                "level": "warning"
+            }
+        })
+    except Exception as e:
+        logger.error(f"Failed to spawn agent process: {e}")
+        await manager.broadcast({
+            "type": "system_message",
+            "data": {
+                "content": f"❌ Failed to launch Agent: {str(e)}",
+                "level": "error"
+            }
+        })
+
+@app.post("/api/analyze")
+async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_agent_process, request.url, request.model)
+    return {"status": "started", "message": "Agent dispatched successfully."}
 
 class ApprovalResponse(BaseModel):
     action_id: str

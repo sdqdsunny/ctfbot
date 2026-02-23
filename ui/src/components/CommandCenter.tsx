@@ -34,6 +34,41 @@ export default function CommandCenter() {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [isEducationalMode, setIsEducationalMode] = useState(false);
 
+    const handleAnalyzeClick = async () => {
+        if (isAnalyzing) {
+            // Future work: send abort signal to backend process
+            setIsAnalyzing(false);
+            return;
+        }
+
+        if (!url.trim()) {
+            alert("⚠️ 请首先输入目标 URL 或 IP 地址。");
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8000/api/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: url,
+                    model: activeModel.id
+                })
+            });
+
+            if (response.ok) {
+                setIsAnalyzing(true);
+            } else {
+                alert('❌ 后端服务器响应错误，启动失败。');
+            }
+        } catch (error) {
+            console.error('Error starting analysis:', error);
+            alert('🚫 无法连接到 UI Server。请确保后端服务 (ui_server.py) 已在端口 8000 启动。');
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen w-full bg-background text-foreground overflow-hidden">
             {/* Top Navigation / Pilot Deck */}
@@ -132,8 +167,11 @@ export default function CommandCenter() {
                             />
                         </div>
                         <button
-                            onClick={() => setIsAnalyzing(!isAnalyzing)}
-                            className="px-6 py-2 bg-gradient-to-r from-cyber-blue to-cyber-purple text-white rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(0,242,255,0.2)] hover:shadow-cyber-blue/40 transition-all flex items-center gap-2"
+                            onClick={handleAnalyzeClick}
+                            className={`px-6 py-2 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(0,242,255,0.2)] hover:shadow-cyber-blue/40 transition-all flex items-center gap-2 ${isAnalyzing
+                                    ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                                    : 'bg-gradient-to-r from-cyber-blue to-cyber-purple text-white'
+                                }`}
                         >
                             <Search className="w-4 h-4" />
                             {isAnalyzing ? 'ABORT' : 'ANALYZE'}
