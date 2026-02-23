@@ -224,6 +224,23 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
             "recon": {}, "web": {}, "crypto": {}, "reverse": {}, "common": {}
         })
         
+        from langchain_core.messages import HumanMessage
+        new_chats = []
+        try:
+            import httpx
+            with httpx.Client(timeout=1.0) as client:
+                resp = client.get("http://localhost:8010/api/pending_chats")
+                if resp.status_code == 200:
+                    chats = resp.json().get("chats", [])
+                    for chat_msg in chats:
+                        print(f"💬 [Uplink] Injecting user chat: {chat_msg}")
+                        new_chats.append(HumanMessage(content=f"【用户实时指令(UPLINK)】: {chat_msg}"))
+        except Exception:
+            pass
+            
+        if new_chats:
+            messages = messages + new_chats
+        
         # 1. 尝试从最近的工具调用中提取事实
         if messages and isinstance(messages[-1], ToolMessage) and messages[-1].name == "dispatch_to_agent":
             try:
@@ -300,7 +317,7 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         ai_msg.tool_calls = unique_calls
         
         if ai_msg.tool_calls:
-            return {"messages": [ai_msg]}
+            return {"messages": new_chats + [ai_msg]}
 
 
         
@@ -326,14 +343,104 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
                 except: pass
 
         if ai_msg.tool_calls:
-            return {"messages": [ai_msg]}
+            return {"messages": new_chats + [ai_msg]}
 
             
-        return {"messages": [ai_msg], "fact_store": fact_store}
+        return {"messages": new_chats + [ai_msg], "fact_store": fact_store}
+
+    # Custom tool node wrapper for intercepting dangerous tools
+    async def intercepted_tools_node(state: AgentState):
+        from langchain_core.messages import ToolMessage, AIMessage
+        from langgraph.prebuilt import ToolNode
+        from asas_agent.utils.ui_emitter import ui_emitter
+        import httpx
+        import asyncio
+        import uuid
+        
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        DANGEROUS_TOOLS = ["kali_exec", "kali_sqlmap", "sandbox_execute", "kali_nmap"]
+        
+        if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
+            node = ToolNode(tools)
+            return await node.ainvoke(state)
+            
+        intercepted_results = []
+        safe_tool_calls = []
+        
+        for tc in last_message.tool_calls:
+            t_name = tc.get("name")
+            t_args = tc.get("args", {})
+            t_id = tc.get("id")
+            
+            if t_name in DANGEROUS_TOOLS:
+                action_id = f"act_{uuid.uuid4().hex[:8]}"
+                
+                ui_emitter.emit("action_approval", {
+                    "action_id": action_id,
+                    "description": f"Agent is attempting to run a potentially dangerous tool: {t_name}",
+                    "danger_level": "high" if t_name in ["kali_exec", "sandbox_execute"] else "medium",
+                    "command": f"{t_name}({json.dumps(t_args)})"
+                })
+                
+                print(f"⚠️ [Interceptor] Pausing for UI approval on {t_name} (Action ID: {action_id})...")
+                
+                approved = False
+                feedback = ""
+                resolved = False
+                
+                async with httpx.AsyncClient() as client:
+                    while not resolved:
+                        try:
+                            resp = await client.get(f"http://localhost:8010/api/approval_status/{action_id}")
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                if data.get("status") == "resolved":
+                                    decision = data.get("decision", {})
+                                    approved = decision.get("approved", False)
+                                    feedback = decision.get("feedback", "")
+                                    resolved = True
+                                    break
+                        except Exception as e:
+                            pass
+                        await asyncio.sleep(1.0)
+                
+                if not approved:
+                    print(f"❌ [Interceptor] Action {action_id} REJECTED by user. Feedback: {feedback}")
+                    intercepted_results.append(ToolMessage(
+                        tool_call_id=t_id,
+                        name=t_name,
+                        content=f"Error: User REJECTED the execution of this tool. Feedback: {feedback}"
+                    ))
+                else:
+                    print(f"✅ [Interceptor] Action {action_id} APPROVED by user.")
+                    safe_tool_calls.append(tc)
+            else:
+                safe_tool_calls.append(tc)
+                
+        if not safe_tool_calls:
+            return {"messages": intercepted_results}
+            
+        temp_message = AIMessage(
+            content=last_message.content,
+            additional_kwargs=last_message.additional_kwargs,
+            response_metadata=last_message.response_metadata,
+            id=last_message.id,
+            tool_calls=safe_tool_calls
+        )
+        temp_state = state.copy()
+        temp_state["messages"] = state["messages"][:-1] + [temp_message]
+        
+        node = ToolNode(tools)
+        result_state = await node.ainvoke(temp_state)
+        
+        final_tool_messages = intercepted_results + result_state["messages"]
+        return {"messages": final_tool_messages}
 
     workflow = StateGraph(AgentState)
     workflow.add_node("orchestrator", orchestrator_node)
-    workflow.add_node("tools", ToolNode(tools))
+    workflow.add_node("tools", intercepted_tools_node)
     
     # Reflection Node Logic
     def reflection_node(state: AgentState):

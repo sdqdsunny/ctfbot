@@ -79,13 +79,19 @@ async def receive_event(payload: EventPayload):
     })
     return {"status": "success"}
 
+# IPC Memory State
+_approvals: dict[str, dict] = {}
+_pending_chats: list[str] = []
+
 class ChatMessage(BaseModel):
     message: str
 
 @app.post("/api/chat")
 async def receive_chat(payload: ChatMessage):
-    # TODO: In future, this will interrupt/feed the Agent's reasoning loop.
-    # For now, echo it back as a system message to verify UI integration.
+    # Store in pending chats for CLI polling
+    _pending_chats.append(payload.message)
+    
+    # Broadcast echo for UI immediate feedback
     await manager.broadcast({
         "type": "system_message",
         "data": {
@@ -95,6 +101,13 @@ async def receive_chat(payload: ChatMessage):
     })
     return {"status": "success"}
 
+@app.get("/api/pending_chats")
+async def get_pending_chats():
+    # Return and clear the pending chats
+    chats = _pending_chats.copy()
+    _pending_chats.clear()
+    return {"chats": chats}
+
 class ApprovalResponse(BaseModel):
     action_id: str
     approved: bool
@@ -102,8 +115,12 @@ class ApprovalResponse(BaseModel):
 
 @app.post("/api/approve")
 async def receive_approval(payload: ApprovalResponse):
-    # TODO: In future, this will resume the Agent's LangGraph node execution.
-    # For now, echo it back to verify the UI interaction.
+    # Store decision in memory
+    _approvals[payload.action_id] = {
+        "approved": payload.approved,
+        "feedback": payload.feedback
+    }
+    
     decision = "APPROVED" if payload.approved else "REJECTED"
     await manager.broadcast({
         "type": "system_message",
@@ -113,6 +130,12 @@ async def receive_approval(payload: ApprovalResponse):
         }
     })
     return {"status": "success"}
+
+@app.get("/api/approval_status/{action_id}")
+async def get_approval_status(action_id: str):
+    if action_id in _approvals:
+        return {"status": "resolved", "decision": _approvals[action_id]}
+    return {"status": "pending"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
