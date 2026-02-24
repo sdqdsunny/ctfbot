@@ -2,15 +2,21 @@ import { useMemo } from 'react';
 import { Node, Edge } from 'reactflow';
 import { AgentEvent } from './useAgentEvents';
 
+export interface StepInfo {
+    title: string;
+    payload: string;
+    logs: string;
+    conclusion: string;
+}
+
 export interface GraphData {
     nodes: Node[];
     edges: Edge[];
-    stepData: Record<string, unknown>;
+    stepData: Record<string, StepInfo>;
 }
 
 export function useGraphData(events: AgentEvent[]): GraphData {
     return useMemo(() => {
-        // Initial state for orchestrator and known workers
         const nodes: Node[] = [
             {
                 id: 'orchestrator',
@@ -64,17 +70,18 @@ export function useGraphData(events: AgentEvent[]): GraphData {
             }
         ];
 
-        const stepData: Record<string, unknown> = {};
-
-        // Track the current active node to attach edges to tools
-        const currentWorkerId = 'web_agent'; // default guess
+        const stepData: Record<string, StepInfo> = {};
+        const currentWorkerId = 'web_agent';
         let toolNodeY = 350;
+
+        // Accumulate logs per worker
+        const workerLogs: Record<string, string[]> = {};
+        const workerPayloads: Record<string, string[]> = {};
 
         events.forEach(event => {
             const data = event.data as Record<string, unknown>;
             const timestamp = event.timestamp.toString();
 
-            // 1. Agent Thought/Action
             if (event.type === 'orchestrator_message') {
                 const thought = data.content as string;
                 if (thought) {
@@ -83,13 +90,19 @@ export function useGraphData(events: AgentEvent[]): GraphData {
                         orchNode.data.status = 'running';
                         orchNode.data.details = 'Thinking / Delegating';
                     }
+                    stepData['orchestrator'] = {
+                        title: 'ReAct Orchestrator',
+                        payload: '',
+                        logs: thought,
+                        conclusion: thought.substring(0, 200)
+                    };
                 }
 
                 const toolCalls = data.tool_calls as Array<{ name: string, args: Record<string, unknown> }>;
                 if (toolCalls && toolCalls.length > 0) {
                     const toolName = toolCalls[0].name;
+                    const payloadStr = `${toolName} ${JSON.stringify(toolCalls[0].args)}`;
 
-                    // Activate worker line
                     const workerNode = nodes.find(n => n.id === currentWorkerId);
                     if (workerNode) {
                         workerNode.data.status = 'running';
@@ -102,21 +115,19 @@ export function useGraphData(events: AgentEvent[]): GraphData {
                         edgeToWorker.style = { stroke: '#00f2ff', strokeWidth: 2 };
                     }
 
-                    // Create Tool Node
                     const toolNodeId = `tool_${timestamp}`;
                     nodes.push({
                         id: toolNodeId,
                         type: 'agent',
-                        position: { x: 100, y: toolNodeY }, // Stack them down
+                        position: { x: 100, y: toolNodeY },
                         data: {
                             label: `Tool: ${toolName}`,
                             agentType: 'system',
                             status: 'running',
-                            details: `Invoked with arguments`
+                            details: 'Invoked with arguments'
                         }
                     });
 
-                    // Edge from worker to tool
                     edges.push({
                         id: `e-${currentWorkerId}-${toolNodeId}`,
                         source: currentWorkerId,
@@ -125,26 +136,34 @@ export function useGraphData(events: AgentEvent[]): GraphData {
                         style: { stroke: '#7000ff', strokeWidth: 2 }
                     });
 
-                    // Save payload data for the inspector
                     stepData[toolNodeId] = {
                         title: toolName,
-                        payload: `${toolName} ${JSON.stringify(toolCalls[0].args)}`,
+                        payload: payloadStr,
                         logs: 'Executing...',
                         conclusion: 'Pending...'
+                    };
+
+                    if (!workerPayloads[currentWorkerId]) workerPayloads[currentWorkerId] = [];
+                    workerPayloads[currentWorkerId].push(payloadStr);
+
+                    stepData[currentWorkerId] = {
+                        title: `Web Agent - ${toolName}`,
+                        payload: workerPayloads[currentWorkerId].join('\n'),
+                        logs: workerLogs[currentWorkerId]?.join('\n---\n') || 'Executing tools...',
+                        conclusion: `Executing ${toolName} against target`
                     };
 
                     toolNodeY += 150;
                 }
             }
 
-            // 2. Tool Execution Result
             else if (event.type === 'tool_result') {
-                // Find the latest running tool node
                 const toolNodes = nodes.filter(n => n.data.agentType === 'system' && n.data.status === 'running');
                 const lastToolNode = toolNodes[toolNodes.length - 1];
+                const content = String(data.content);
+                const isError = Boolean(data.is_error);
 
                 if (lastToolNode) {
-                    const isError = data.is_error;
                     lastToolNode.data.status = isError ? 'error' : 'success';
                     lastToolNode.data.details = isError ? 'Execution failed' : 'Execution succeeded';
 
@@ -154,15 +173,24 @@ export function useGraphData(events: AgentEvent[]): GraphData {
                         edgeToTool.style = { stroke: isError ? '#f43f5e' : '#10b981', strokeWidth: 2 };
                     }
 
-                    // Update step data
-                    if (stepData[lastToolNode.id]) {
-                        stepData[lastToolNode.id].logs = data.content;
-                        stepData[lastToolNode.id].conclusion = isError ? 'Tool execution encountered an error.' : 'Tool returned successfully.';
+                    const toolStep = stepData[lastToolNode.id];
+                    if (toolStep) {
+                        toolStep.logs = content;
+                        toolStep.conclusion = isError ? 'Tool execution encountered an error.' : 'Tool returned successfully.';
                     }
                 }
+
+                if (!workerLogs[currentWorkerId]) workerLogs[currentWorkerId] = [];
+                workerLogs[currentWorkerId].push(content);
+
+                stepData[currentWorkerId] = {
+                    title: 'Web Agent',
+                    payload: workerPayloads[currentWorkerId]?.join('\n') || '',
+                    logs: workerLogs[currentWorkerId].join('\n---\n'),
+                    conclusion: isError ? 'Some tools encountered errors.' : 'Tools executed successfully.'
+                };
             }
 
-            // 3. System Messages (Finish/Error)
             else if (event.type === 'system_message') {
                 if (data.level === 'warning' && (data.content as string).includes('Terminated')) {
                     nodes.forEach(n => {
