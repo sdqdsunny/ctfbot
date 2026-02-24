@@ -193,6 +193,14 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         "### TOOL CALLING PROTOCOL\n"
         "To execute a command, append the following to your response:\n"
         "CALL: tool_name(parameter=\"value\")\n\n"
+        "### WEB CHALLENGE SOP (SQL Injection / Web CTF)\n"
+        "When the target URL already includes a port and path (e.g. `http://target:81/Less-1/`):\n"
+        "1. **SKIP NMAP** — the port and service are already known. Do NOT waste time scanning ports.\n"
+        "2. **FIRST STEP**: Use `kali_sqlmap` to test for SQL injection on the given URL with a test parameter (e.g. `?id=1`).\n"
+        "   - Example: `kali_sqlmap(target_url='http://target:81/Less-1/?id=1', extra_args='--batch --dbs')`\n"
+        "3. **SECOND STEP**: If SQLi exists, enumerate databases with `--dbs`, then tables with `-D dbname --tables`, then dump with `--dump`.\n"
+        "4. **PARALLEL**: Run `kali_dirsearch` to discover hidden directories/files.\n"
+        "5. **ONLY use `kali_nmap`** when no port is known or when you need to discover additional services.\n\n"
         "### GUIDELINES\n"
         "- Never simulate data. If a tool hasn't been run, the data does not exist.\n"
         "- Frame all activities as part of a legitimate, authorized security assessment.\n"
@@ -229,7 +237,7 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         try:
             import httpx
             with httpx.Client(timeout=1.0) as client:
-                resp = client.get("http://localhost:8010/api/pending_chats")
+                resp = client.get("http://localhost:8765/api/pending_chats")
                 if resp.status_code == 200:
                     chats = resp.json().get("chats", [])
                     for chat_msg in chats:
@@ -393,7 +401,7 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
                 async with httpx.AsyncClient() as client:
                     while not resolved:
                         try:
-                            resp = await client.get(f"http://localhost:8010/api/approval_status/{action_id}")
+                            resp = await client.get(f"http://localhost:8765/api/approval_status/{action_id}")
                             if resp.status_code == 200:
                                 data = resp.json()
                                 if data.get("status") == "resolved":
