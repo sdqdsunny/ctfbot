@@ -116,13 +116,15 @@ class AnalyzeRequest(BaseModel):
 async def run_agent_process(url: str, model: str):
     logger.info(f"Starting background agent process for {url} using {model}")
     
-    # Simulate CLI execution
     cmd = [
-        "poetry", "run", "python", "-m", "src.asas_agent", 
+        "poetry", "run", "python", "-m", "src.asas_agent",
+        "run",
         "--url", url, 
         "--llm", model, 
         "--v3"
     ]
+    
+    logger.info(f"Spawning command: {' '.join(cmd)}")
     
     try:
         process = await asyncio.create_subprocess_exec(
@@ -131,22 +133,36 @@ async def run_agent_process(url: str, model: str):
             stderr=asyncio.subprocess.PIPE
         )
         
-        await process.communicate()
+        stdout, stderr = await process.communicate()
         
-        await manager.broadcast({
-            "type": "system_message",
-            "data": {
-                "content": f"🎯 Agent Analysis Process Terminated for {url}",
-                "level": "warning"
-            }
-        })
+        if process.returncode != 0:
+            err_msg = stderr.decode() if stderr else "Unknown error"
+            logger.error(f"Agent process exited with code {process.returncode}: {err_msg[:500]}")
+            await manager.broadcast({
+                "type": "system_message",
+                "data": {
+                    "content": f"❌ Agent exited with error (code {process.returncode}): {err_msg[:200]}",
+                    "level": "error",
+                    "is_user_facing": True
+                }
+            })
+        else:
+            await manager.broadcast({
+                "type": "system_message",
+                "data": {
+                    "content": f"🎯 Agent Analysis Process Completed for {url}",
+                    "level": "warning",
+                    "is_user_facing": True
+                }
+            })
     except Exception as e:
         logger.error(f"Failed to spawn agent process: {e}")
         await manager.broadcast({
             "type": "system_message",
             "data": {
                 "content": f"❌ Failed to launch Agent: {str(e)}",
-                "level": "error"
+                "level": "error",
+                "is_user_facing": True
             }
         })
 
