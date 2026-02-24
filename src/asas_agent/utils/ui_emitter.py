@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger("ui_emitter")
 
 class UIEmitter:
-    def __init__(self, base_url: str = "http://localhost:8010"):
+    def __init__(self, base_url: str = "http://localhost:8765"):
         self.base_url = base_url
         self.endpoint = f"{self.base_url}/api/events"
 
