@@ -12,6 +12,47 @@ import asas_mcp.__main__
 
 load_dotenv()
 
+import re as _re
+from urllib.parse import urlparse as _urlparse
+
+def _generate_smart_instruction(url: str) -> str:
+    """Generate a context-aware initial instruction based on URL patterns."""
+    parsed = _urlparse(url)
+    path = parsed.path.lower()
+    host = parsed.hostname or ""
+    port = parsed.port or 80
+    
+    # sqli-labs detection
+    if _re.search(r'less-?\d+', path, _re.IGNORECASE) or 'sqli' in path:
+        return (
+            f"这是一道 SQL 注入题目（sqli-labs），目标地址为 {url}。"
+            f"端口 {port} 已知，无需 nmap 扫描。"
+            f"请立即使用 kali_sqlmap 工具，对 {url}?id=1 进行 SQL 注入检测。"
+            f"具体步骤：1) --dbs 列出数据库  2) -D 数据库名 --tables  3) --dump 导出数据，寻找 flag。"
+            f"使用 --batch 参数自动确认。"
+        )
+    
+    # XSS detection
+    if 'xss' in path:
+        return (
+            f"这是一道 XSS 跨站脚本题目，目标地址为 {url}。"
+            f"请使用 kali_exec 配合 curl 分析页面，寻找可注入的参数。"
+        )
+    
+    # File upload detection
+    if 'upload' in path:
+        return (
+            f"这是一道文件上传漏洞题目，目标地址为 {url}。"
+            f"请先用 kali_dirsearch 探测目录结构，然后分析上传接口的过滤机制。"
+        )
+    
+    # General web challenge
+    return (
+        f"请对目标 {url} 进行安全审计。"
+        f"端口 {port} 上已有 Web 服务运行，无需 nmap 端口扫描。"
+        f"请优先使用 kali_sqlmap 检测 SQL 注入，同时用 kali_dirsearch 扫描目录。"
+    )
+
 def load_v3_config(path: str = None) -> Dict[str, Any]:
     """Load v3 multi-agent configuration."""
     if path and os.path.exists(path):
@@ -173,8 +214,13 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
         print(f"🧠 Initializing v3 Multi-Agent Orchestrator ({orch_cfg.get('model')})...")
         app = create_orchestrator_graph(orch_llm, tools)
         
-        # 4. Prepare Workflow
-        initial_msg = input_text or f"Scan platform {url} and solve challenges."
+        # 4. Prepare Workflow - Generate smart initial instructions
+        if input_text:
+            initial_msg = input_text
+        elif url:
+            initial_msg = _generate_smart_instruction(url)
+        else:
+            initial_msg = "Awaiting instructions."
         state = {"messages": [HumanMessage(content=initial_msg)]}
         if url: state["platform_url"] = url
         if token: state["platform_token"] = token
