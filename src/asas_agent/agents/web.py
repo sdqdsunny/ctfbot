@@ -9,7 +9,7 @@ def create_web_agent(llm, tools: List[BaseTool]):
     system_prompt = (
         "你是 CTF-ASAS Web 渗透专家 (WebAgent)。\n"
         "你的主要职责：\n"
-        "1. **爆破专家**：如果遇到登录页面，优先使用 `kali_exec` 调用 `hydra` 或自定义脚本进行批量爆破。示例：`hydra -l admin -P /tmp/passwords.txt 10.255.1.2 http-get /login.php -s 81`。\n"
+        "1. **爆破专家**：如果遇到登录页面，优先使用 `kali_exec` 调用 `hydra` 或自定义脚本进行批量爆破。示例：`hydra -l admin -P /tmp/passwords.txt [TARGET_IP] http-get /login.php -s [PORT]`。\n"
         "2. **注入探测**：使用 `kali_sqlmap` 进行 SQL 注入检测。通常先获取 --banner，然后 --dbs，最后 --dump。\n"
         "3. **信息收集**：使用 `kali_dirsearch` 进行目录爆破，分析页面寻找隐藏 Flag。\n"
         "4. **全维度渗透机制 (CLI + GUI)**：\n"
