@@ -250,8 +250,8 @@ def create_llm(config: Dict[str, Any]) -> Any:
         from langchain_openai import ChatOpenAI
         
         if provider == "deepseek":
-            api_key = "REDACTED_DEEPSEEK_KEY_1"
-            base_url = "https://api.deepseek.com/v1"
+            api_key = config.get("api_key") or os.environ.get("DEEPSEEK_API_KEY")
+            base_url = config.get("base_url") or "https://api.deepseek.com/v1"
         else:
             api_key = config.get("api_key") or os.environ.get("OPENAI_API_KEY")
             base_url = config.get("base_url")

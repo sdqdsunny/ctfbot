@@ -190,7 +190,7 @@ def main_cli(input_text, url, token, llm, api_key, v2, v3, config):
         if llm == 'deepseek':
             orch_cfg["provider"] = "deepseek"
             # 优先使用用户提供的 Key
-            orch_cfg["api_key"] = api_key or "REDACTED_DEEPSEEK_KEY_1"
+            orch_cfg["api_key"] = api_key or os.environ.get("DEEPSEEK_API_KEY")
             if "model" not in orch_cfg:
                 orch_cfg["model"] = "deepseek-chat"
             if "base_url" not in orch_cfg:

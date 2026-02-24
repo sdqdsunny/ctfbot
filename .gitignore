@@ -7,3 +7,16 @@ dist/
 build/
 
 .worktrees/
+
+# Sensitive configs - NEVER commit these
+v3_deepseek.yaml
+.env
+.env.*
+!.env.example
+*.secret
+config_store.json
+
+# Node
+node_modules/
+.next/
+data/
