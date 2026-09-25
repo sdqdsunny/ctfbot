@@ -323,6 +323,84 @@ def memory_query(query: str, n_results: int = 5) -> list:
     manager = _get_memory_manager()
     return manager.query(text=query, n_results=n_results)
 
+# --- WP Search & Script Registry Integration ---
+from .memory.wp_search import WPSearchEngine
+from .memory.script_registry import ScriptRegistry
+
+_wp_engine = None
+_script_registry = None
+
+def _get_wp_engine() -> WPSearchEngine:
+    global _wp_engine
+    if _wp_engine is None:
+        _wp_engine = WPSearchEngine("data/writeups/wp_index.db")
+    return _wp_engine
+
+def _get_script_registry() -> ScriptRegistry:
+    global _script_registry
+    if _script_registry is None:
+        _script_registry = ScriptRegistry("data/scripts/ctf_tools")
+    return _script_registry
+
+@mcp_server.tool()
+def search_writeups(
+    query: str = "",
+    competition: str = None,
+    category: str = None,
+    year: int = None,
+    limit: int = 10
+) -> list:
+    """在 1156 篇历年 CTF 大赛 WriteUp 中搜索解题思路。
+
+    Args:
+        query: 搜索关键词（如 "SQL注入 WAF绕过"、"RSA共模攻击"）
+        competition: 过滤赛事名（如 "强网杯"、"HITCON"、"西湖论剑"）
+        category: 过滤方向（web / crypto / pwn / reverse / misc）
+        year: 过滤年份（如 2024）
+        limit: 返回结果数量上限
+
+    Returns:
+        匹配的 WriteUp 列表，每个包含 title/competition/category/year/snippet
+    """
+    engine = _get_wp_engine()
+    return engine.search(query=query, competition=competition, category=category, year=year, limit=limit)
+
+@mcp_server.tool()
+def list_ctf_scripts(category: str = None) -> list:
+    """列出可用的 CTF 解题脚本工具。
+
+    Args:
+        category: 过滤分类（crypto / stego / traffic / web / misc / reverse）。不传则返回全部。
+
+    Returns:
+        脚本列表，每个包含 name/category/path/script_count
+    """
+    registry = _get_script_registry()
+    return registry.list_scripts(category=category)
+
+@mcp_server.tool()
+def run_ctf_script(script_keyword: str, args: str = "") -> str:
+    """查找并在 Docker 沙箱中执行 CTF 解题脚本。
+
+    Args:
+        script_keyword: 脚本关键词（如 "RSA"、"CRC32"、"USB流量"）
+        args: 传给脚本的命令行参数
+
+    Returns:
+        脚本执行输出
+    """
+    registry = _get_script_registry()
+    script = registry.find_script(script_keyword)
+    if not script:
+        available = [s['name'] for s in registry.list_scripts()]
+        return f"未找到匹配 '{script_keyword}' 的脚本。可用脚本: {available}"
+
+    cmd = f"python3 {script['path']}"
+    if args:
+        cmd += f" {args}"
+
+    return sandbox.execute_in_sandbox(cmd)
+
 # 保留 FastAPI 兼容性
 def create_app():
     """创建 FastAPI 应用（用于 HTTP 访问）"""
@@ -364,7 +442,10 @@ def create_app():
                 "vnc_capture_screen",
                 "vnc_mouse_click",
                 "vnc_keyboard_type",
-                "vnc_send_key"
+                "vnc_send_key",
+                "search_writeups",
+                "list_ctf_scripts",
+                "run_ctf_script"
             ]
         }
     
