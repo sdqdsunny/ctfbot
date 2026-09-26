@@ -47,6 +47,16 @@ CTF-ASAS 是一款基于大语言模型（LLM）多智能体协作的**全自动
 | `sandbox_execute` | Docker 沙箱内执行 Python/Shell | Docker |
 | `vnc_capture_screen` | VNC 截屏实现 GUI 交互 (Computer Use) | VMware |
 
+### 📚 CTF 知识库 (Knowledge Base)
+
+| 层级 | 内容 | 检索方式 | MCP 工具 |
+|------|------|----------|----------|
+| **核心知识** | 12 篇漏洞专题 + Payload 速查表 (698 chunks) | ChromaDB 语义检索 | `memory_query` |
+| **大赛 WP** | 1041 篇历年 WriteUp (强网杯/HITCON/西湖论剑等) | SQLite FTS5 全文检索 | `search_writeups` |
+| **解题脚本** | 47 个工具集 (RSA/CRC32/USB流量/盲水印等) | 分类注册 + 沙箱执行 | `list_ctf_scripts` / `run_ctf_script` |
+
+> 数据来源：[Des-CTF-Knowledge](https://github.com/Des-Nerger/Des-CTF-Knowledge)，构建命令：`python scripts/build_kb.py --verify`
+
 ### 🔌 多 LLM 支持
 
 - **DeepSeek R1 / Chat** — 推荐，性价比最高
@@ -226,10 +236,11 @@ ctfbot/
 - [x] **v0.1 ~ v0.4**: 基础 Agent、MCP 工具链、RAG 记忆、Docker/Kali 集成
 - [x] **v0.5**: 逆向引擎增强 (Angr/Ghidra/IDA Pro)
 - [x] **v0.6**: 分布式 Swarm 架构 (Ray Cluster, GPU Scheduler)
-- [x] **v0.7 (Current)**: **命令中心 UI** + 实时可视化 + 多模型支持 + 智能攻击策略
-- [ ] **v0.8**: 真实靶场全自动化复现 (sqli-labs, DVWA, HackTheBox)
-- [ ] **v0.9**: Agent 记忆增强 + 自动 Writeup 生成
-- [ ] **v1.0**: 正式生产就绪版本
+- [x] **v0.7**: **命令中心 UI** + 实时可视化 + 多模型支持 + 智能攻击策略
+- [x] **v0.8 (Current)**: **CTF 知识库整合** (12篇核心知识 + 1041篇WP + 47个脚本工具)
+- [ ] **v0.9**: 真实靶场全自动化复现 (sqli-labs, DVWA, HackTheBox)
+- [ ] **v1.0**: Agent 记忆增强 + 自动 Writeup 生成
+- [ ] **v1.1**: 正式生产就绪版本
 
 ---
 
