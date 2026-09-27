@@ -9,6 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui_server")
 
+from asas_agent import __version__
 from asas_agent.config_manager import config_manager
 
 app = FastAPI(title="CTF-ASAS UI Bridge")
@@ -46,7 +47,9 @@ manager = ConnectionManager()
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "0.1.0"}
+    # 原先硬编码 "0.1.0"：线上 /health 报的版本与实际发布版本不符，
+    # 排查问题时会把方向带偏。改为读包内版本（唯一权威见 pyproject.toml）。
+    return {"status": "ok", "version": __version__}
 
 @app.get("/config")
 async def get_config():
@@ -135,7 +138,28 @@ async def run_agent_process(url: str, model: str):
         
         stdout, stderr = await process.communicate()
         
-        if process.returncode != 0:
+        if process.returncode == 0:
+            await manager.broadcast({
+                "type": "system_message",
+                "data": {
+                    "content": f"🎯 Agent Analysis Process Completed for {url}",
+                    "level": "warning",
+                    "is_user_facing": True
+                }
+            })
+        elif process.returncode == 3:
+            # 3 = 跑完了但没拿到 flag（退出码约定见 asas_agent/__main__.py）。
+            # 这不是崩溃：agent 正常执行完，只是没解出结果。若也走下面的 error 分支，
+            # 每次无果的任务都会被渲染成"进程异常"，真正的故障反而淹没其中。
+            await manager.broadcast({
+                "type": "system_message",
+                "data": {
+                    "content": f"⚠ Agent Analysis Finished for {url} — no flag captured",
+                    "level": "warning",
+                    "is_user_facing": True
+                }
+            })
+        else:
             err_msg = stderr.decode() if stderr else "Unknown error"
             logger.error(f"Agent process exited with code {process.returncode}: {err_msg[:500]}")
             await manager.broadcast({
@@ -143,15 +167,6 @@ async def run_agent_process(url: str, model: str):
                 "data": {
                     "content": f"❌ Agent exited with error (code {process.returncode}): {err_msg[:200]}",
                     "level": "error",
-                    "is_user_facing": True
-                }
-            })
-        else:
-            await manager.broadcast({
-                "type": "system_message",
-                "data": {
-                    "content": f"🎯 Agent Analysis Process Completed for {url}",
-                    "level": "warning",
                     "is_user_facing": True
                 }
             })
