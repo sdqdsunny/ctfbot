@@ -1,6 +1,6 @@
 # 🤖 CTF-ASAS (Automated Solving Agent System)
 
-[![Version](https://img.shields.io/badge/version-0.7.0-orange.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.8.0-orange.svg)](pyproject.toml)
 [![Python](https://img.shields.io/badge/python-3.10+-yellow.svg)](https://www.python.org/)
 [![MCP](https://img.shields.io/badge/protocol-MCP-green.svg)](https://modelcontextprotocol.io/)
 [![Next.js](https://img.shields.io/badge/UI-Next.js-black.svg)](https://nextjs.org/)
@@ -49,13 +49,22 @@ CTF-ASAS 是一款基于大语言模型（LLM）多智能体协作的**全自动
 
 ### 📚 CTF 知识库 (Knowledge Base)
 
-| 层级 | 内容 | 检索方式 | MCP 工具 |
-|------|------|----------|----------|
-| **核心知识** | 12 篇漏洞专题 + Payload 速查表 (698 chunks) | ChromaDB 语义检索 | `memory_query` |
-| **大赛 WP** | 1041 篇历年 WriteUp (强网杯/HITCON/西湖论剑等) | SQLite FTS5 全文检索 | `search_writeups` |
-| **解题脚本** | 47 个工具集 (RSA/CRC32/USB流量/盲水印等) | 分类注册 + 沙箱执行 | `list_ctf_scripts` / `run_ctf_script` |
+| 层级 | 内容 | 检索方式 | MCP 工具 | 交付方式 |
+|------|------|----------|----------|----------|
+| **核心知识** | 19 篇专题 (含 Payload 速查表)，698 chunks | ChromaDB 语义检索 | `memory_query` | 随仓库交付 (1.0MB) |
+| **大赛 WP** | 1041 篇历年 WriteUp (强网杯/HITCON/西湖论剑等) | SQLite FTS5 全文检索 | `search_writeups` | 需拉取 (31MB) |
+| **解题脚本** | 47 个工具集 (RSA/CRC32/USB流量/盲水印等) | 分类注册 + 沙箱执行 | `list_ctf_scripts` / `run_ctf_script` | 需拉取 (4.4MB) |
 
-> 数据来源：[Des-CTF-Knowledge](https://github.com/Des-Nerger/Des-CTF-Knowledge)，构建命令：`python scripts/build_kb.py --verify`
+> 数据来源：[Dest1ny-Sec/Des-CTF-Knowledge](https://github.com/Dest1ny-Sec/Des-CTF-Knowledge) (MIT)
+>
+> **大件语料不随仓库分发**（体积 + 第三方汇编），首次使用需拉取一次：
+>
+> ```bash
+> python scripts/fetch_corpus.py     # 拉取语料 + 建 WP 索引（约 70MB，一次性）
+> python scripts/fetch_corpus.py --check   # 随时自检语料与索引是否齐备
+> ```
+>
+> 核心知识库的逐文件来源与授权见 [`data/knowledge_base/LICENSE`](data/knowledge_base/LICENSE)。
 
 ### 🔌 多 LLM 支持
 
@@ -128,7 +137,27 @@ cd ctfbot
 poetry install
 ```
 
-### 2. 配置 API Key
+### 2. 创建配置文件
+
+本仓库**不含 `v3_config.yaml`** —— 它是本地配置，已被 `.gitignore` 忽略。
+首次使用需从模板创建，否则启动会报 `Configuration file not found`：
+
+```bash
+cp v3_config.yaml.example v3_config.yaml
+```
+
+> **API Key 不写在这个文件里。** 配置中的 `provider` 字段决定读哪个环境变量
+> （`deepseek` → `DEEPSEEK_API_KEY`，见 `src/asas_agent/llm/factory.py`）。
+> 把 Key 直接写进 YAML 会导致它随文件被误提交。
+
+需要切换 provider 时，用 `--config` 指定其它模板：
+
+```bash
+cp v3_lmstudio.yaml.example v3_lmstudio.yaml    # 本地模型
+python -m src.asas_agent run --v3 --config v3_lmstudio.yaml "<目标>"
+```
+
+### 3. 配置 API Key
 
 ```bash
 # 创建 .env 文件
@@ -141,14 +170,22 @@ DEEPSEEK_API_KEY=your_deepseek_key_here
 EOF
 ```
 
-或者复制配置模板：
+### 4. 拉取知识库语料（一次性）
+
+核心知识库 19 篇随仓库交付，开箱即用。WP 全文与脚本工具合计 35MB，
+为第三方汇编，不随仓库分发，需拉取一次：
 
 ```bash
-cp v3_deepseek.yaml.example v3_deepseek.yaml
-# 编辑 v3_deepseek.yaml 填入你的 API Key
+python scripts/fetch_corpus.py
 ```
 
-### 3. 启动 UI 界面
+随时自检语料与索引是否齐备：
+
+```bash
+python scripts/fetch_corpus.py --check
+```
+
+### 5. 启动 UI 界面
 
 ```bash
 # 终端 1: 启动后端 API Server
@@ -160,7 +197,7 @@ cd ui && pnpm install && pnpm dev
 
 打开浏览器访问 **<http://localhost:3000>** 🎉
 
-### 4. 开始解题
+### 6. 开始解题
 
 1. 在顶部输入框粘贴目标 URL（如 `http://target:81/Less-1/`）
 2. 选择 LLM 模型（推荐 DeepSeek R1）
@@ -169,18 +206,32 @@ cd ui && pnpm install && pnpm dev
 5. 点击 **Approve** 授权执行危险操作
 6. 查看实时日志和执行结果
 
-### 5. CLI 模式 (无 UI)
+### 7. CLI 模式 (无 UI)
 
 ```bash
 # DeepSeek 模式 (v3 多智能体)
 poetry run python -m src.asas_agent run --url "http://target:81/Less-1/" --llm deepseek --v3
 
 # Mock 模式 (无需 API Key，验证流程)
-poetry run python -m src.asas_agent run --llm mock --v3 "解码这段 Base64: SGVsbG8="
+# 注意：mock 用子串匹配识别意图（大小写不敏感），关键词只有这几组——
+#   fetch / get challenge → 取题      decode → 解码      submit → 提交
+#   scan / explore / analyze / 探查 / pwn → 派发子 agent
+# 其它说法不会触发任何工具：包括"分析一下"这类中文描述（中文只认字面的"探查"），
+# 以及只给一个 URL 而不带上述关键词的写法。
+poetry run python -m src.asas_agent run --llm mock --v3 "scan the target 127.0.0.1"
 
 # Claude 模式
 poetry run python -m src.asas_agent run --llm claude --v3 "扫描目标并识别漏洞"
 ```
+
+**退出码**（便于脚本与 CI 判断结果）：
+
+| 码 | 含义 |
+|----|------|
+| `0` | 任务完成且捕获到 flag |
+| `1` | 运行期间出错 |
+| `2` | 无法启动（配置文件缺失、未提供目标） |
+| `3` | 任务跑完但未捕获到 flag |
 
 ---
 
@@ -237,7 +288,7 @@ ctfbot/
 - [x] **v0.5**: 逆向引擎增强 (Angr/Ghidra/IDA Pro)
 - [x] **v0.6**: 分布式 Swarm 架构 (Ray Cluster, GPU Scheduler)
 - [x] **v0.7**: **命令中心 UI** + 实时可视化 + 多模型支持 + 智能攻击策略
-- [x] **v0.8 (Current)**: **CTF 知识库整合** (12篇核心知识 + 1041篇WP + 47个脚本工具)
+- [x] **v0.8 (Current)**: **CTF 知识库整合** (19篇核心知识 + 1041篇WP + 47个脚本工具)
 - [ ] **v0.9**: 真实靶场全自动化复现 (sqli-labs, DVWA, HackTheBox)
 - [ ] **v1.0**: Agent 记忆增强 + 自动 Writeup 生成
 - [ ] **v1.1**: 正式生产就绪版本
