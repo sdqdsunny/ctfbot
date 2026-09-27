@@ -1,5 +1,5 @@
 from langgraph.graph import MessagesState
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 class AgentState(MessagesState):
     """v2.0 ReAct Agent State - inherits messages from MessagesState"""
@@ -16,6 +16,11 @@ class AgentState(MessagesState):
     }
     current_agent: Optional[str]
     retry_count: int = 0  # v4 Reflection loop counter
+    
+    # v5 verification loop fields
+    extracted_flags: List[str] = []              # 已提取的 flag 列表
+    verification_status: Optional[str] = None    # None / "l1_passed" / "l2_needs_poc" / "l3_verified" / "failed"
+    poc_attempts: int = 0                        # PoC 验证尝试次数
     
     # v1 compatibility fields (will be deprecated)
     user_input: Optional[str]
