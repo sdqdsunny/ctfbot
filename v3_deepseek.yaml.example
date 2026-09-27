@@ -1,0 +1,45 @@
+# CTF-ASAS v3.0 配置模板
+#
+# 用法：
+#   cp v3_deepseek.yaml.example v3_config.yaml
+#   然后在 .env 里设置 DEEPSEEK_API_KEY=sk-xxxx
+#
+# 为什么 Key 不在这个文件里：
+#   provider 设为 "deepseek" 时，create_llm() 会自动回退到环境变量
+#   DEEPSEEK_API_KEY（见 src/asas_agent/llm/factory.py:344-346）。
+#   不要把 Key 直接写进 YAML —— 配置文件很容易被误提交。
+#
+# 换用其它 provider：
+#   anthropic -> ANTHROPIC_API_KEY / openai -> OPENAI_API_KEY
+#   google    -> GOOGLE_API_KEY    / zhipu  -> ZHIPU_API_KEY
+orchestrator:
+  provider: "deepseek"
+  model: "deepseek-chat"
+  base_url: "https://api.deepseek.com/v1"
+  temperature: 0.1
+
+agents:
+  crypto:
+    provider: "deepseek"
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
+  recon:
+    provider: "deepseek"
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
+  web:
+    provider: "deepseek"
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
+  reverse:
+    provider: "deepseek"
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
+  writeup:
+    provider: "deepseek"
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
+  memory:
+    provider: "deepseek"
+    model: "deepseek-chat"
+    base_url: "https://api.deepseek.com/v1"
