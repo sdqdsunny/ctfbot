@@ -5,7 +5,19 @@ import os
 import base64
 
 # 创建 MCP Server 实例
-mcp_server = FastMCP("asas-core-mcp")
+#
+# log_level 必须在这里显式传，不能指望 FASTMCP_LOG_LEVEL 环境变量自己生效：
+# FastMCP.__init__ 的形参默认值是 "INFO"，它会作为**显式值**写进 Settings，
+# 而显式值优先级高于 env（已实测：设了 FASTMCP_LOG_LEVEL=ERROR，settings 仍是 INFO）。
+# 结果是每次工具调用都往 stderr 打一行 "Processing request of type ..."，
+# 而这行的发出方是子进程，父进程怎么调级别都压不住。
+# 这里读同一个环境变量：父进程 asas_agent CLI 按 --debug 下发，默认 WARNING 保持输出干净。
+_LOG_LEVEL = os.environ.get("FASTMCP_LOG_LEVEL", "WARNING").upper()
+if _LOG_LEVEL not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+    # 环境变量写错不该让整个工具服务器起不来，退回默认值即可
+    _LOG_LEVEL = "WARNING"
+
+mcp_server = FastMCP("asas-core-mcp", log_level=_LOG_LEVEL)
 
 @mcp_server.tool()
 async def open_vm_vnc(vm_name: str) -> str:
