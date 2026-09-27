@@ -68,7 +68,12 @@ async def dispatch_to_agent(agent_type: str, task: str, platform_url: Optional[s
     
     # 2. Instantiate LLM
     try:
-        llm = create_llm(agent_config)
+        import os
+        if os.environ.get("ASAS_MOCK_MODE") == "1":
+            from ..llm.mock_react import ReActMockLLM
+            llm = ReActMockLLM()
+        else:
+            llm = create_llm(agent_config)
     except Exception as e:
         return json.dumps({
             "status": "failure",
@@ -158,20 +163,22 @@ async def dispatch_to_agent(agent_type: str, task: str, platform_url: Optional[s
         reasoning = last_message.content if hasattr(last_message, 'content') else str(last_message)
         
         # 7. Post-process to find Flag and Facts
-        flag = None
-        extracted_facts = {}
-        import re
+        from .verifier import flag_extractor
         
-        # Extract Flag
-        flag_match = re.search(r"flag\{.*?\}", reasoning, re.IGNORECASE)
-        if flag_match:
-            flag = flag_match.group(0)
+        extracted_facts = {}
+        
+        # Extract Flag (复用统一的 FlagExtractor)
+        flags = flag_extractor.extract(reasoning)
+        if flags:
+            flag = flags[0]  # 取第一个匹配
             status = "success"
         else:
+            flag = None
             status = "indeterminate"
             
         # Extract Facts (Look for JSON block or specific tag)
         # Pattern: FACTS: { ... }
+        import re
         facts_match = re.search(r"FACTS:\s*(\{.*?\})", reasoning, re.DOTALL)
         if facts_match:
             try:
