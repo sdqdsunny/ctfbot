@@ -1,0 +1,30 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+*.md
+docs/
+tests/
+.DS_Store
+.gitignore
+
+# 例外：核心知识库是 .md。
+# dockerignore 的 `*.md` 这类不含斜杠的模式，其作用层级在不同文档/版本间
+# 描述不一（Docker 文档的 `temp?` 例子读起来像是只匹配根目录）。
+# 为不依赖这一歧义，这里显式写全路径的否定规则：
+#   - 若 `*.md` 只匹配根层 → 本行是空操作，知识库照常进入镜像
+#   - 若 `*.md` 匹配任意层级 → 本行负责把知识库救回来
+# 两种情况结果一致。（dockerignore 规则后者优先，故例外必须写在 *.md 之后）
+!data/knowledge_base/*.md
+!data/knowledge_base/LICENSE
+
+# 大件语料与构建产物不进构建上下文：
+#   chroma_db 在容器内首次使用 memory 时自动构建，无需分发
+#   writeups / scripts / vendor 是宿主侧语料，其中 vendor 还是完整的 git 克隆，
+#   放进上下文会白白传输上百 MB 并显著拖慢构建
+data/chroma_db/
+data/writeups/
+data/scripts/
+data/vendor/
+data/shared/

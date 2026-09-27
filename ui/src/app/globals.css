@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b0e14;
+  --foreground: #f0f0f0;
+  --cyber-blue: #00f2ff;
+  --cyber-purple: #7000ff;
+  --cyber-pink: #ff00c1;
+  --glass-bg: rgba(15, 20, 30, 0.7);
+  --glass-border: rgba(0, 242, 255, 0.2);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-cyber-blue: var(--cyber-blue);
+  --color-cyber-purple: var(--cyber-purple);
+  --color-cyber-pink: var(--cyber-pink);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.cyber-glow {
+  box-shadow: 0 0 15px var(--cyber-blue);
+}

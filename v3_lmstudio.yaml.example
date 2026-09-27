@@ -1,0 +1,50 @@
+# CTF-ASAS v3.0 LM Studio 配置模板（本地模型）
+#
+# 用法：
+#   cp v3_lmstudio.yaml.example v3_lmstudio.yaml
+#   python -m src.asas_agent run --v3 --config v3_lmstudio.yaml "<目标>"
+#
+# 前置：
+#   1. 启动 LM Studio，加载一个模型并开启本地 server（默认端口 1234）
+#   2. 把下面各处的 model 改成你在 LM Studio 里实际加载的模型名
+#
+# 为什么这里没有 API Key：
+#   LM Studio 是本地推理服务，不需要 Key。同理也无需写进 .env。
+#   （对照 v3_config.yaml.example：那类云端 provider 才需要 DEEPSEEK_API_KEY 等。）
+#
+# 注意：本地小模型在 CTF 多步推理上能力有限，建议先确认模型可用再投入解题。
+orchestrator:
+  provider: "lmstudio"
+  model: "dolphin-2.9.3-mistral-nemo-12b"
+  base_url: "http://127.0.0.1:1234/v1"
+  temperature: 0.1
+
+agents:
+  crypto:
+    provider: "lmstudio"
+    model: "dolphin-2.9.3-mistral-nemo-12b"
+    base_url: "http://127.0.0.1:1234/v1"
+  recon:
+    provider: "lmstudio"
+    model: "dolphin-2.9.3-mistral-nemo-12b"
+    base_url: "http://127.0.0.1:1234/v1"
+  web:
+    provider: "lmstudio"
+    model: "dolphin-2.9.3-mistral-nemo-12b"
+    base_url: "http://127.0.0.1:1234/v1"
+  reverse:
+    provider: "lmstudio"
+    model: "dolphin-2.9.3-mistral-nemo-12b"
+    base_url: "http://127.0.0.1:1234/v1"
+  pwn:
+    provider: "lmstudio"
+    model: "dolphin-2.9.3-mistral-nemo-12b"
+    base_url: "http://127.0.0.1:1234/v1"
+  writeup:
+    provider: "lmstudio"
+    model: "dolphin-2.9.3-mistral-nemo-12b"
+    base_url: "http://127.0.0.1:1234/v1"
+  memory:
+    provider: "lmstudio"
+    model: "dolphin-2.9.3-mistral-nemo-12b"
+    base_url: "http://127.0.0.1:1234/v1"

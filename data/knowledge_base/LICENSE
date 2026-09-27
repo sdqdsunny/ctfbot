@@ -1,0 +1,89 @@
+# 核心知识库的来源与授权
+
+本目录下 19 篇 Markdown 知识文章**并非原创**，全部派生自开源项目
+[Dest1ny-Sec/Des-CTF-Knowledge](https://github.com/Dest1ny-Sec/Des-CTF-Knowledge)。
+
+本仓库对其做的工作仅为：**重命名**（按 `web_*` / `tools_*` / `misc_*` / `payload_*`
+的命名约定，使 agent 能将题型映射到文件）与**挑选子集**（19 篇核心主题）。
+文件内容未经修改，可与上游逐字节校验（见下表 sha256）。
+
+---
+
+## 一、逐文件对应关系（sha256 精确匹配）
+
+| 本目录文件 | 上游路径 |
+| :--------- | :------- |
+| `misc_archive.md` | `压缩包总结.md` |
+| `misc_audio_stego.md` | `音频隐写.md` |
+| `misc_image_stego.md` | `图片隐写.md` |
+| `payload_cheatsheet.md` | `PAYLOAD-CHEATSHEET.md` |
+| `tools_dirsearch.md` | `工具使用/Dirsearch.md` |
+| `tools_ffuf.md` | `工具使用/ffuf的使用.md` |
+| `tools_sqlmap.md` | `工具使用/sqlmap-Cheat-Sheet.md` |
+| `tools_tshark.md` | `工具使用/tshark使用.md` |
+| `tools_volatility.md` | `工具使用/内存取证秒杀所有命令.md` |
+| `tools_wireshark.md` | `工具使用/Wireshark使用.md` |
+| `web_audit.md` | `php代码审计.md` |
+| `web_deserialize.md` | `PHP反序列化漏洞总结.md` |
+| `web_jwt.md` | `JWT.md` |
+| `web_lfi.md` | `文件包含.md` |
+| `web_rce.md` | `命令执行.md` |
+| `web_sqli.md` | `SQL.md` |
+| `web_ssrf.md` | `SSRF漏洞.md` |
+| `web_ssti.md` | `SSTI.md` |
+| `web_upload.md` | `文件上传漏洞.md` |
+
+上游版本锁定为 commit `03525c6104c6f9c9a8061f05c2d045ecc31428b2`（2026-09-23）。
+
+其余语料（WP 全文 31MB、脚本工具 4.4MB）不随本仓库分发，
+由 `scripts/fetch_corpus.py` 从上游拉取，见 README。
+
+---
+
+## 二、上游授权（MIT License）
+
+```
+MIT License
+
+Copyright (c) 2026 Dest1ny
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## 三、上游的重要声明（务请留意）
+
+上游仓库同时声明：
+
+> Note: The knowledge articles, writeups, and scripts in this repository are
+> collected from publicly available sources. Individual articles and scripts may
+> have their own original authors and licenses. This MIT license covers the
+> overall compilation, organization, and original content added by the repository
+> maintainer.
+
+即：**MIT 覆盖的是"汇编整理"这一层，单篇文章可能另有原作者与授权。**
+上游对本目录内容同样无逐篇溯源，本仓库亦无法对其单篇授权做进一步保证。
+
+实际影响与本仓库的处理：
+- 本目录 19 篇作为上游汇编的一部分被分发，与上游自身公开分发的方式一致；
+- 单篇内部标注了原始出处（如 `tools_sqlmap.md` 标注"来源: sqlmap-Cheat-Sheet.pdf"），
+  这些标注**未被移除**，可直接追溯到原始作者；
+- 部分文章引用了外部 CDN 图片（如 `image.3001.net`），这些图片**不在本仓库内**，
+  上游亦声明其可能已失效。
+
+若需商用分发或对授权有更高要求，请自行联系上游或各文章原作者。

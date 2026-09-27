@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  kali-tooling:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.kali
+    container_name: ctfbot-kali
+    volumes:
+      - ./data/shared:/data # Shared volume for file exchange
+    restart: unless-stopped
+
+  ghidra-service:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.ghidra
+    container_name: ctfbot-ghidra
+    volumes:
+      - ./data/shared:/data
+    restart: unless-stopped
+  # Optional SageMath service for future use
+  # sage-service: ...

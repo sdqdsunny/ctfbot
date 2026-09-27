@@ -1,0 +1,70 @@
+name: Tests
+
+# 为什么需要这个 workflow：
+#   原先全仓库只有一个 build.yml，且只在 push 匹配 'v*' 的 tag 时触发。
+#   而仓库里一个 tag 都没有（0 个），分支推送和 PR 又都不触发任何 CI——
+#   也就是说所有测试从来没在 CI 上跑过一次，回归只能靠人肉发现。
+#
+# 触发范围取 push(main) + 全部 PR：main 上的每次落地和每个待合并的 PR 都要过。
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一分支/PR 连续推送时取消上一次未跑完的，省 runner 时间
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 与 Dockerfile 里固定的版本保持一致，避免"CI 过了但镜像里装的是另一个版本"
+  POETRY_VERSION: "2.3.2"
+
+jobs:
+  version:
+    name: 版本号一致性
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 纯标准库脚本，不需要装依赖，所以放在独立的 job 里先跑——
+      # 版本号漂移能在一秒内失败，不必等几分钟的依赖安装。
+      - name: 校验各处版本号一致
+        run: python scripts/check_version.py
+
+  test:
+    name: 测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install "poetry==${POETRY_VERSION}"
+
+      # poetry.lock 已随仓库提交，poetry install 会按 lock 装依赖：
+      # 本地、CI、Docker 镜像三处装到的是同一套版本；lock 与 pyproject
+      # 不一致时 poetry 会直接报错，而不是悄悄漂移到另一套依赖。
+      - name: Install dependencies
+        run: poetry install
+
+      # PYTHONPATH=src 是必需的：本项目是 src 布局且未以 editable 方式安装，
+      # 直接跑 pytest 会有一批假的 collection error（找不到 asas_agent/asas_mcp）。
+      - name: Run tests
+        run: poetry run pytest tests/ -q
+        env:
+          PYTHONPATH: src
+
+      # 语料（WP 全文 31MB + 脚本 4.4MB）不随仓库分发，
+      # 相关用例在缺席时会 skip 而不是 fail —— 见 tests/test_kb_integration.py 顶部说明。
+      # 需要连语料一起验时，在本步骤前加一步：
+      #   poetry run python scripts/fetch_corpus.py

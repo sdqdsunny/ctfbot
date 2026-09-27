@@ -1,0 +1,17 @@
+FROM kalilinux/kali-rolling
+
+# Update and install tools
+RUN apt-get update && apt-get install -y \
+    sqlmap \
+    nmap \
+    nuclei \
+    seclists \
+    curl \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /data
+
+# Default command to keep container running
+CMD ["tail", "-f", "/dev/null"]

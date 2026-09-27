@@ -1,0 +1,241 @@
+import asyncio
+import json
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import logging
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ui_server")
+
+from asas_agent import __version__
+from asas_agent.config_manager import config_manager
+
+app = FastAPI(title="CTF-ASAS UI Bridge")
+
+# 启用 CORS 以支持 Tauri 开发环境
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        logger.info(f"New client connected. Active connections: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+        logger.info(f"Client disconnected. Active connections: {len(self.active_connections)}")
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            await connection.send_json(message)
+
+manager = ConnectionManager()
+
+@app.get("/health")
+async def health_check():
+    # 原先硬编码 "0.1.0"：线上 /health 报的版本与实际发布版本不符，
+    # 排查问题时会把方向带偏。改为读包内版本（唯一权威见 pyproject.toml）。
+    return {"status": "ok", "version": __version__}
+
+@app.get("/config")
+async def get_config():
+    # 返回脱敏后的配置（不返回 Base64 原始值，仅返回是否有 Key）
+    safe_config = {}
+    for p_id, p_data in config_manager.providers.items():
+        safe_config[p_id] = {
+            "model": p_data.get("model"),
+            "hasKey": bool(p_data.get("apiKey"))
+        }
+    return safe_config
+
+@app.post("/config/{provider_id}")
+async def update_config(provider_id: str, data: dict):
+    success = config_manager.update_provider(provider_id, data)
+    return {"status": "success" if success else "failed"}
+
+from fastapi import BackgroundTasks
+from pydantic import BaseModel
+
+class EventPayload(BaseModel):
+    type: str
+    data: dict
+
+@app.post("/api/events")
+async def receive_event(payload: EventPayload):
+    # Broadcast to all connected WebSockets
+    await manager.broadcast({
+        "type": payload.type,
+        "data": payload.data
+    })
+    return {"status": "success"}
+
+# IPC Memory State
+_approvals: dict[str, dict] = {}
+_pending_chats: list[str] = []
+
+class ChatMessage(BaseModel):
+    message: str
+
+@app.post("/api/chat")
+async def receive_chat(payload: ChatMessage):
+    # Store in pending chats for CLI polling
+    _pending_chats.append(payload.message)
+    
+    # Broadcast echo for UI immediate feedback
+    await manager.broadcast({
+        "type": "system_message",
+        "data": {
+            "content": f"User instruction received: {payload.message}",
+            "level": "info"
+        }
+    })
+    return {"status": "success"}
+
+@app.get("/api/pending_chats")
+async def get_pending_chats():
+    # Return and clear the pending chats
+    chats = _pending_chats.copy()
+    _pending_chats.clear()
+    return {"chats": chats}
+
+class AnalyzeRequest(BaseModel):
+    url: str
+    model: str = "config"
+
+async def run_agent_process(url: str, model: str):
+    logger.info(f"Starting background agent process for {url} using {model}")
+    
+    cmd = [
+        "poetry", "run", "python", "-m", "src.asas_agent",
+        "run",
+        "--url", url, 
+        "--llm", model, 
+        "--v3"
+    ]
+    
+    logger.info(f"Spawning command: {' '.join(cmd)}")
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode == 0:
+            await manager.broadcast({
+                "type": "system_message",
+                "data": {
+                    "content": f"🎯 Agent Analysis Process Completed for {url}",
+                    "level": "warning",
+                    "is_user_facing": True
+                }
+            })
+        elif process.returncode == 3:
+            # 3 = 跑完了但没拿到 flag（退出码约定见 asas_agent/__main__.py）。
+            # 这不是崩溃：agent 正常执行完，只是没解出结果。若也走下面的 error 分支，
+            # 每次无果的任务都会被渲染成"进程异常"，真正的故障反而淹没其中。
+            await manager.broadcast({
+                "type": "system_message",
+                "data": {
+                    "content": f"⚠ Agent Analysis Finished for {url} — no flag captured",
+                    "level": "warning",
+                    "is_user_facing": True
+                }
+            })
+        else:
+            err_msg = stderr.decode() if stderr else "Unknown error"
+            logger.error(f"Agent process exited with code {process.returncode}: {err_msg[:500]}")
+            await manager.broadcast({
+                "type": "system_message",
+                "data": {
+                    "content": f"❌ Agent exited with error (code {process.returncode}): {err_msg[:200]}",
+                    "level": "error",
+                    "is_user_facing": True
+                }
+            })
+    except Exception as e:
+        logger.error(f"Failed to spawn agent process: {e}")
+        await manager.broadcast({
+            "type": "system_message",
+            "data": {
+                "content": f"❌ Failed to launch Agent: {str(e)}",
+                "level": "error",
+                "is_user_facing": True
+            }
+        })
+
+@app.post("/api/analyze")
+async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_agent_process, request.url, request.model)
+    return {"status": "started", "message": "Agent dispatched successfully."}
+
+class ApprovalResponse(BaseModel):
+    action_id: str
+    approved: bool
+    feedback: str = ""
+
+@app.post("/api/approve")
+async def receive_approval(payload: ApprovalResponse):
+    # Store decision in memory
+    _approvals[payload.action_id] = {
+        "approved": payload.approved,
+        "feedback": payload.feedback
+    }
+    
+    decision = "APPROVED" if payload.approved else "REJECTED"
+    await manager.broadcast({
+        "type": "system_message",
+        "data": {
+            "content": f"Action {payload.action_id} {decision}. Feedback: {payload.feedback}",
+            "level": "warning" if not payload.approved else "success"
+        }
+    })
+    return {"status": "success"}
+
+@app.get("/api/approval_status/{action_id}")
+async def get_approval_status(action_id: str):
+    if action_id in _approvals:
+        return {"status": "resolved", "decision": _approvals[action_id]}
+    return {"status": "pending"}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            logger.info(f"Received message from client: {data}")
+            # 处理来自前端的消息（如启动任务）
+            msg_json = json.loads(data)
+            await manager.broadcast({
+                "type": "ack",
+                "message": f"Server received: {msg_json.get('type')}"
+            })
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        manager.disconnect(websocket)
+
+def run_server(port: int = 8765):
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+if __name__ == "__main__":
+    run_server()
