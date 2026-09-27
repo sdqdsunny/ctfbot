@@ -44,16 +44,20 @@ AGENT_CREATORS = {
 async def dispatch_to_agent(agent_type: str, task: str, platform_url: Optional[str] = None, challenge_id: Optional[str] = None) -> str:
     """
     Dispatch a task to a specialized agent.
-    
+
     Args:
-        agent_type: One of 'crypto', 'web', 'reverse', 'recon'
+        agent_type: One of 'crypto', 'web', 'reverse', 'pwn', 'recon', 'writeup', 'memory'
         task: Detailed description of the task
         platform_url: URL of the CTF platform (optional)
         challenge_id: ID of the challenge (optional)
-        
+
     Returns:
         A JSON string containing the AgentResult.
     """
+
+    # 权威列表是下面的 AGENT_CREATORS——它是 @tool，上面这段 docstring 会被
+    # 当作工具描述发给模型，所以漏列的 agent 类型等于对模型不存在。
+    # （保持字面量：f-string 不是字符串字面量，不会成为 __doc__。）
     if agent_type not in AGENT_CREATORS:
         return json.dumps({
             "status": "failure",

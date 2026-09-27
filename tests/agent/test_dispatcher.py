@@ -51,3 +51,20 @@ def test_agent_result_schema():
     assert res.status == "success"
     assert res.flag == "flag{test}"
     assert "Applied" in res.reasoning
+
+
+def test_tool_description_lists_every_registered_agent():
+    """dispatch_to_agent 的 docstring 就是发给模型的工具描述。
+
+    漏列某个 agent 类型等于告诉模型"这个类型不存在"——原 docstring 只写了
+    crypto/web/reverse/recon 四个，pwn/writeup/memory 虽然已注册却没人知道，
+    模型自然永远不会派发它们。这里把 docstring 与注册表钉在一起，
+    以后新增 agent 忘了改描述会直接失败。
+    """
+    from asas_agent.graph.dispatcher import AGENT_CREATORS, dispatch_to_agent
+
+    description = dispatch_to_agent.description
+    assert description, "工具描述为空 —— docstring 可能被写成了非字面量（如 f-string）"
+
+    missing = [a for a in AGENT_CREATORS if a not in description]
+    assert not missing, f"工具描述里缺少已注册的 agent 类型: {missing}"

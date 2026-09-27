@@ -71,7 +71,7 @@ class ReActMockLLM:
         if "submit" in user_msg:
             return "platform_submit_flag"
 
-        if "scan" in user_msg or "explore" in user_msg or "analyze" in user_msg:
+        if "scan" in user_msg or "explore" in user_msg or "analyze" in user_msg or "探查" in user_msg or "pwn" in user_msg:
             # Check if we already have facts in history
             if any("port_81" in str(m.content) for m in history):
                 return "final_answer"
@@ -123,7 +123,8 @@ class ReActMockLLM:
             # Select agent based on context
             target_agent = "recon"
             if "crypto" in context: target_agent = "crypto"
-            elif "web" in context: target_agent = "web"
+            elif "web" in context.lower(): target_agent = "web"
+            elif "pwn" in context.lower(): target_agent = "pwn"
             
             return {
                 "name": "dispatch_to_agent",
