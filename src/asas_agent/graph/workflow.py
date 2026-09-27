@@ -383,6 +383,12 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
             t_id = tc.get("id")
             
             if t_name in DANGEROUS_TOOLS:
+                import os
+                if os.environ.get("ASAS_AUTO_APPROVE") == "1":
+                    print(f"✅ [Interceptor] Auto-approved {t_name} (ASAS_AUTO_APPROVE=1).")
+                    safe_tool_calls.append(tc)
+                    continue
+                
                 action_id = f"act_{uuid.uuid4().hex[:8]}"
                 
                 ui_emitter.emit("action_approval", {
@@ -450,23 +456,29 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
     workflow.add_node("orchestrator", orchestrator_node)
     workflow.add_node("tools", intercepted_tools_node)
     
-    # Reflection Node Logic
+    # Reflection Node Logic (L2 语义验证)
     def reflection_node(state: AgentState):
         from langchain_core.messages import SystemMessage, HumanMessage
+        from .verifier import build_reflection_prompt, flag_extractor
+        
         messages = state["messages"]
         last_tool_msg = messages[-1]
+        content = str(last_tool_msg.content) if hasattr(last_tool_msg, "content") else ""
         
         # Increment retry count
         current_retries = state.get("retry_count", 0) + 1
         
-        reflection_prompt = (
-            f"反思时刻 (第 {current_retries}/3 次尝试)：\n"
-            f"上一步工具调用返回了错误或未找到 Flag。\n"
-            f"错误信息: {last_tool_msg.content[:500]}...\n"
-            "请分析失败原因，并生成一个新的策略。你可以尝试：\n"
-            "1. 检查参数是否正确。\n"
-            "2. 换一个工具或方法。\n"
-            "3. 使用 `retrieve_knowledge` 查找类似问题的解决办法。"
+        # 判断场景
+        content_lower = content.lower()
+        if "error" in content_lower or "failed" in content_lower:
+            scenario = "error"
+        elif current_retries >= 2 and not flag_extractor.has_flag(content):
+            scenario = "stale"
+        else:
+            scenario = "progress"
+        
+        reflection_prompt = build_reflection_prompt(
+            current_retries - 1, content, scenario
         )
         
         # Inject reflection as a user message to guide the LLM
@@ -477,36 +489,76 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
 
     workflow.add_node("reflection", reflection_node)
     
+    # Flag Capture Node (L1 验证通过后更新 state)
+    def flag_capture_node(state: AgentState):
+        """捕获工具输出中的 flag 并更新 state"""
+        from .verifier import flag_extractor
+        
+        messages = state["messages"]
+        existing_flags = list(state.get("extracted_flags", []))
+        
+        # 扫描最近的消息寻找 flag
+        for msg in reversed(messages[-5:]):
+            content = str(getattr(msg, "content", ""))
+            found = flag_extractor.extract(content)
+            for f in found:
+                if f not in existing_flags:
+                    existing_flags.append(f)
+        
+        if existing_flags:
+            print(f"🏁 [FlagCapture] 已捕获 flags: {existing_flags}")
+        
+        return {
+            "extracted_flags": existing_flags,
+            "verification_status": "l1_passed" if existing_flags else None,
+        }
+    
+    workflow.add_node("flag_capture", flag_capture_node)
+    
     workflow.add_edge(START, "orchestrator")
     
     def should_continue(state: AgentState):
+        from .verifier import flag_extractor
+        
         messages = state["messages"]
         last_message = messages[-1]
         
-        # If it's an AI message with tool calls, go to tools
+        # 1. AI message with tool calls → route to tools
         if isinstance(last_message, AIMessage) and last_message.tool_calls:
             print(f"DEBUG [should_continue]: AIMessage with tool_calls -> 'tools'")
             return "tools"
             
-        # If it's a tool output, go back to orchestrator (or reflection)
+        # 2. Tool output → L1 验证 + 条件路由
         if isinstance(last_message, ToolMessage):
-            # Check for failure keywords in tool output
-            content = str(last_message.content).lower()
-            if "error" in content or "failed" in content or "indeterminate" in content:
-                # Check retry limit
+            content = str(last_message.content)
+            
+            # === L1: Flag 格式验证 ===
+            if flag_extractor.has_flag(content):
+                print(f"🚩 [L1 验证通过] 工具输出中发现 flag")
+                return "flag_capture"
+            
+            # === 错误检测 → reflection ===
+            content_lower = content.lower()
+            if "error" in content_lower or "failed" in content_lower or "indeterminate" in content_lower:
                 retries = state.get("retry_count", 0)
                 if retries < 3:
                     print(f"DEBUG [should_continue]: ToolMessage error -> 'reflection'")
                     return "reflection"
-            print(f"DEBUG [should_continue]: ToolMessage success -> 'orchestrator'")
+                else:
+                    print(f"DEBUG [should_continue]: Retry limit reached -> END")
+                    return END
+            
+            # === 成功但无 flag → 继续 orchestrator ===
+            print(f"DEBUG [should_continue]: ToolMessage success (no flag) -> 'orchestrator'")
             return "orchestrator"
             
         print(f"DEBUG [should_continue]: Fallthrough -> END")
         return END
         
-    workflow.add_conditional_edges("orchestrator", should_continue, ["tools", "orchestrator", END])
-    workflow.add_conditional_edges("tools", should_continue, ["orchestrator", "reflection", END])
+    workflow.add_conditional_edges("orchestrator", should_continue, ["tools", "orchestrator", "flag_capture", END])
+    workflow.add_conditional_edges("tools", should_continue, ["orchestrator", "reflection", "flag_capture", END])
     workflow.add_edge("reflection", "orchestrator")
+    workflow.add_edge("flag_capture", END)
     
     return workflow.compile()
 
