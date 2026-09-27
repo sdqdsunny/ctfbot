@@ -8,15 +8,39 @@ build/
 
 .worktrees/
 
+# macOS 元数据（Finder 随手就写，与项目无关）
+.DS_Store
+
 # Sensitive configs - NEVER commit these
-v3_deepseek.yaml
+# v3 本地配置含 API Key（或由 .env 提供），全部忽略；模板见 *.yaml.example
+v3_*.yaml
+!v3_*.yaml.example
 .env
 .env.*
 !.env.example
 *.secret
 config_store.json
+# config_manager.py 在此持久化 API Key（仅 base64 混淆，等同明文）
+config/providers.json
 
 # Node
 node_modules/
 .next/
-data/
+
+# data/ 是语料与构建产物目录，默认全部不入库。
+#   - 构建产物（chroma_db/、wp_index.db）每次重建都变，入库只会造成二进制冲突
+#   - 大件语料（WP 31MB / 脚本 4.4MB）由 scripts/fetch_corpus.py 拉取，见 README
+data/*
+# 例外：核心知识库 19 篇随仓库交付 —— 产品核心功能，体积小（1.0MB），MIT 授权。
+# 来源与逐文件对应关系见 data/knowledge_base/LICENSE
+!data/knowledge_base/
+data/knowledge_base/*
+!data/knowledge_base/*.md
+!data/knowledge_base/LICENSE
+
+# 上面那条 `data/*` 只锚定仓库根目录，管不到 src/data/ 这类其它位置的产物。
+# 向量库路径是相对 CWD 解析的（`./data/chroma_db`），在 src/ 下运行过一次就会
+# 在 src/data/ 留下一份——这正是 src/data/chroma_db 的来历，且从未被任何代码引用。
+# 用不带斜杠前缀的 `chroma_db/` 兜住任意层级，避免再犯。
+chroma_db/
+
