@@ -37,7 +37,8 @@ CTF-ASAS 是一款基于大语言模型（LLM）多智能体协作的**全自动
 - **Human-in-the-Loop**：危险操作（nmap/sqlmap/kali_exec）需用户审批后执行
 - **🚩 Flag 验证闭环**：不轻信模型的自述。**L1** 用统一的 `FlagExtractor` 对工具输出做格式校验，
   命中即进入 `flag_capture` 节点；**L2** 在连续未命中时按三种场景（执行报错 / 有进展 / 长期停滞）
-  生成反思提示，引导模型换策略而不是重复失败动作
+  生成反思提示，引导模型换策略而不是重复失败动作。
+  （三级递进验证的设计思路参考自 [strix](https://github.com/usestrix/strix)，见文末「参考与致谢」）
 
 ### 🎯 实时可视化命令中心 (Command Center UI)
 
@@ -327,6 +328,24 @@ ctfbot/
 - [ ] **v0.9**: 真实靶场全自动化复现 (sqli-labs, DVWA, HackTheBox)
 - [ ] **v1.0**: Agent 记忆增强 + 自动 Writeup 生成
 - [ ] **v1.1**: 正式生产就绪版本
+
+---
+
+## 🙏 参考与致谢
+
+本项目的部分设计思路与内容参考自以下开源项目，在此致谢：
+
+| 项目 | 协议 | 参考内容 |
+|------|------|----------|
+| [usestrix/strix](https://github.com/usestrix/strix) | Apache-2.0 | **三级递进验证闭环**的设计思路（L1 格式校验 → L2 语义反思 → L3 PoC 重放），见上文「核心特性」 |
+| [Dest1ny-Sec/Des-CTF-Knowledge](https://github.com/Dest1ny-Sec/Des-CTF-Knowledge) | MIT | 核心知识库 19 篇专题的原始内容，以及历年大赛 WriteUp 与解题脚本语料 |
+
+> **参考方式说明：**
+>
+> - **strix** —— 属**设计思路层面**的参考，本项目代码为自行实现。
+> - **Des-CTF-Knowledge** —— 属**原文派生**：本仓库对知识库文章仅做重命名与挑选子集，
+>   内容未改动。逐文件对应关系与 sha256 校验值见
+>   [`data/knowledge_base/LICENSE`](data/knowledge_base/LICENSE)。
 
 ---
 
