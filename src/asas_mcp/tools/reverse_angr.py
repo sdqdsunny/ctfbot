@@ -35,7 +35,7 @@ async def reverse_angr_solve(binary_path: str, find_addr: str, avoid_addrs: Opti
         if stdin_prefix_hex:
             prefix_bytes = bytes.fromhex(stdin_prefix_hex.replace('0x', ''))
             state.posix.stdin.content.append((prefix_bytes, len(prefix_bytes)))
-            print(f"DEBUG [Angr]: Injected {len(prefix_bytes)} bytes of prefix from Fuzzer seeds.")
+            logger.debug(f"DEBUG [Angr]: Injected {len(prefix_bytes)} bytes of prefix from Fuzzer seeds.")
         
         # 3. 创建仿真管理器
         simgr = project.factory.simgr(state)
@@ -45,7 +45,7 @@ async def reverse_angr_solve(binary_path: str, find_addr: str, avoid_addrs: Opti
         avoid_list = [int(a, 16) for a in (avoid_addrs or [])]
         
         # 5. 执行搜索
-        print(f"DEBUG [Angr]: Exploring path to {find_addr}...")
+        logger.debug(f"DEBUG [Angr]: Exploring path to {find_addr}...")
         simgr.explore(find=target_addr, avoid=avoid_list)
         
         # 6. 处理结果

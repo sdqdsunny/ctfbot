@@ -3,6 +3,9 @@ from ..mcp_client.client import MCPToolClient
 from typing import List, Any
 import asyncio
 
+import logging
+logger = logging.getLogger(__name__)
+
 async def convert_mcp_to_langchain_tools(mcp_client: MCPToolClient) -> List[StructuredTool]:
     """Convert MCP tools to LangChain StructuredTool format"""
     mcp_tools = await mcp_client.list_tools()
@@ -25,11 +28,11 @@ async def convert_mcp_to_langchain_tools(mcp_client: MCPToolClient) -> List[Stru
             if not final_args and hasattr(self, '_args') and self._args:
                 pass
                 
-            print(f"DEBUG [MCPTool]: {self.name} final_args={final_args}")
+            logger.debug(f"DEBUG [MCPTool]: {self.name} final_args={final_args}")
             return await self.mcp_client.call_tool(self.name, final_args)
 
     for tool in mcp_tools:
-        print(f"DEBUG: Processing tool schema for {tool.name}")
+        logger.debug(f"DEBUG: Processing tool schema for {tool.name}")
         
         lc_tool = MCPTool(
             name=tool.name,

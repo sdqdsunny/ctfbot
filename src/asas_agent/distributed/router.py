@@ -72,14 +72,14 @@ class SwarmRouter:
                 if required_tags:
                     caps = status["capabilities"]
                     if not all(self._check_capability(caps, tag) for tag in required_tags):
-                        print(f"DEBUG: Node {node_id} filtered out due to missing tags. Caps: {caps}")
+                        logger.debug(f"DEBUG: Node {node_id} filtered out due to missing tags. Caps: {caps}")
                         continue
                 
                 # Reputation score: Success rate * (1 - load)
                 reputation = status.get("success_rate", 1.0)
                 load_factor = 1.0 - (status.get("load", 0) / 100.0)
                 score = reputation * load_factor
-                print(f"DEBUG: Node {node_id} score: {score} (Rep: {reputation}, Load: {status.get('load')})")
+                logger.debug(f"DEBUG: Node {node_id} score: {score} (Rep: {reputation}, Load: {status.get('load')})")
                 
                 if score > highest_score:
                     highest_score = score

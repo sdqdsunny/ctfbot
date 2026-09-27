@@ -7,6 +7,9 @@ from .state import AgentState
 from ..llm.base import LLMProvider
 from ..mcp_client.client import MCPToolClient
 
+import logging
+logger = logging.getLogger(__name__)
+
 class AgentNodes:
     def __init__(self, llm: LLMProvider, mcp_client: MCPToolClient):
         self.llm = llm
@@ -117,7 +120,7 @@ class AgentNodes:
             # Clean reasoning tags (thought or think) and parse JSON
             import re
             clean_params = re.sub(r"<(thought|think)>.*?</\1>", "", str(raw_params), flags=re.DOTALL | re.IGNORECASE).strip()
-            print(f"DEBUG [Plan] Cleaned LLM params output: {clean_params[:200]}...")
+            logger.debug(f"DEBUG [Plan] Cleaned LLM params output: {clean_params[:200]}...")
             
             try:
                 # Find the first { and last }

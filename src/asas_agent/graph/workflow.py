@@ -9,6 +9,9 @@ from langchain_core.messages import SystemMessage, ToolMessage, HumanMessage, AI
 import json
 import uuid
 
+import logging
+logger = logging.getLogger(__name__)
+
 def _parse_manual_tool_calls(content: str) -> List[Dict[str, Any]]:
     """Helper to parse manual tool call patterns from LLM text."""
     import re
@@ -106,10 +109,10 @@ def create_react_agent_graph(llm, tools: List[BaseTool], system_prompt: str = No
         if system_prompt and not any(isinstance(m, SystemMessage) for m in messages):
             messages = [SystemMessage(content=system_prompt)] + messages
             
-        print(f"DEBUG [AgentNode]: Calling LLM with {len(messages)} messages...")
+        logger.debug(f"DEBUG [AgentNode]: Calling LLM with {len(messages)} messages...")
         result = llm.invoke(messages)
         content = str(result.content)
-        print(f"DEBUG [AgentNode]: LLM Output: {content[:200]}...")
+        logger.debug(f"DEBUG [AgentNode]: LLM Output: {content[:200]}...")
         
         # Strip <thought> tags for reasoning models
         import re
@@ -119,7 +122,7 @@ def create_react_agent_graph(llm, tools: List[BaseTool], system_prompt: str = No
         manual_calls = _parse_manual_tool_calls(clean_content)
         if manual_calls and not (hasattr(result, 'tool_calls') and result.tool_calls):
             result.tool_calls = manual_calls
-            print(f"DEBUG [AgentNode]: Parsed manual tool_calls: {manual_calls}")
+            logger.debug(f"DEBUG [AgentNode]: Parsed manual tool_calls: {manual_calls}")
             
         return {"messages": [result]}
         
@@ -141,11 +144,11 @@ def create_react_agent_graph(llm, tools: List[BaseTool], system_prompt: str = No
                 tool_results.append(ToolMessage(content=f"Error: Tool '{tool_name}' not found.", tool_call_id=tool_call_id, name=tool_name))
                 continue
                 
-            print(f"DEBUG [tools_node]: Executing {tool_name}({tool_args})")
+            logger.debug(f"DEBUG [tools_node]: Executing {tool_name}({tool_args})")
             try:
                 # Use ainvoke - LangChain handles sync tools in a separate thread pool automatically
                 result = await target_tool.ainvoke(tool_args)
-                print(f"DEBUG [tools_node]: Result snippet: {str(result)[:200]}...")
+                logger.debug(f"DEBUG [tools_node]: Result snippet: {str(result)[:200]}...")
                 tool_results.append(ToolMessage(content=str(result), tool_call_id=tool_call_id, name=tool_name))
             except Exception as e:
                 print(f"ERROR executing tool {tool_name}: {e}")
@@ -166,10 +169,10 @@ def create_react_agent_graph(llm, tools: List[BaseTool], system_prompt: str = No
         last_message = messages[-1]
         # If LLM made tool calls, route to tools node
         if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-            print(f"DEBUG [should_continue]: Routing to 'tools' with {len(last_message.tool_calls)} calls.")
+            logger.debug(f"DEBUG [should_continue]: Routing to 'tools' with {len(last_message.tool_calls)} calls.")
             return "tools"
         # Otherwise, end the conversation
-        print("DEBUG [should_continue]: Routing to END.")
+        logger.debug("DEBUG [should_continue]: Routing to END.")
         return END
         
     workflow.add_conditional_edges("agent", should_continue, ["tools", END])
@@ -293,8 +296,8 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         else:
             ai_msg = llm.invoke(new_messages)
         content = str(ai_msg.content)
-        print(f"DEBUG [Orchestrator]: Full Raw LLM Output: {content}")
-        print(f"DEBUG [Orchestrator]: Content length: {len(content)}")
+        logger.debug(f"DEBUG [Orchestrator]: Full Raw LLM Output: {content}")
+        logger.debug(f"DEBUG [Orchestrator]: Content length: {len(content)}")
         
         
         # 解析工具调用（支持 DeepSeek R1 思考过程清洗）
@@ -310,7 +313,7 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
             ai_msg.tool_calls = []
             
         if manual_calls:
-            print(f"DEBUG [Orchestrator]: Parsed {len(manual_calls)} manual tool calls.")
+            logger.debug(f"DEBUG [Orchestrator]: Parsed {len(manual_calls)} manual tool calls.")
             ai_msg.tool_calls.extend(manual_calls)
             
         # 3. 去重 logic
@@ -525,7 +528,7 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
         
         # 1. AI message with tool calls → route to tools
         if isinstance(last_message, AIMessage) and last_message.tool_calls:
-            print(f"DEBUG [should_continue]: AIMessage with tool_calls -> 'tools'")
+            logger.debug(f"DEBUG [should_continue]: AIMessage with tool_calls -> 'tools'")
             return "tools"
             
         # 2. Tool output → L1 验证 + 条件路由
@@ -542,17 +545,17 @@ def create_orchestrator_graph(llm, tools: List[BaseTool]):
             if "error" in content_lower or "failed" in content_lower or "indeterminate" in content_lower:
                 retries = state.get("retry_count", 0)
                 if retries < 3:
-                    print(f"DEBUG [should_continue]: ToolMessage error -> 'reflection'")
+                    logger.debug(f"DEBUG [should_continue]: ToolMessage error -> 'reflection'")
                     return "reflection"
                 else:
-                    print(f"DEBUG [should_continue]: Retry limit reached -> END")
+                    logger.debug(f"DEBUG [should_continue]: Retry limit reached -> END")
                     return END
             
             # === 成功但无 flag → 继续 orchestrator ===
-            print(f"DEBUG [should_continue]: ToolMessage success (no flag) -> 'orchestrator'")
+            logger.debug(f"DEBUG [should_continue]: ToolMessage success (no flag) -> 'orchestrator'")
             return "orchestrator"
             
-        print(f"DEBUG [should_continue]: Fallthrough -> END")
+        logger.debug(f"DEBUG [should_continue]: Fallthrough -> END")
         return END
         
     workflow.add_conditional_edges("orchestrator", should_continue, ["tools", "orchestrator", "flag_capture", END])

@@ -3,6 +3,9 @@ from mcp.client.stdio import stdio_client
 import sys
 import os
 
+import logging
+logger = logging.getLogger(__name__)
+
 class MCPToolClient:
     """Client for calling MCP tools."""
     
@@ -27,7 +30,7 @@ class MCPToolClient:
         async with stdio_client(self.server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                print(f"DEBUG [MCPClient]: Calling {tool_name} with {arguments}")
+                logger.debug(f"DEBUG [MCPClient]: Calling {tool_name} with {arguments}")
                 result = await session.call_tool(tool_name, arguments)
                 if hasattr(result, 'content') and result.content:
                     # Parse contents (which could be TextContent or ImageContent)

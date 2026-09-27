@@ -4,6 +4,9 @@ from langchain_core.tools import tool
 import json
 import asyncio
 
+import logging
+logger = logging.getLogger(__name__)
+
 class AgentResult(BaseModel):
     """Standardized result from a specialized agent."""
     status: str = Field(..., description="success, failure, or indeterminate")
@@ -104,7 +107,7 @@ async def dispatch_to_agent(agent_type: str, task: str, platform_url: Optional[s
         final_state = inputs
         async for event in graph.astream(inputs, stream_mode="updates"):
             # DEBUG: print raw event
-            print(f"DEBUG [Dispatcher] raw event: {str(event)[:300]}")
+            logger.debug(f"DEBUG [Dispatcher] raw event: {str(event)[:300]}")
             
             # event is {node_name: {updates}}
             if not isinstance(event, dict):

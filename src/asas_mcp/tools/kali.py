@@ -4,6 +4,8 @@ import tempfile
 import uuid
 import logging
 
+logger = logging.getLogger(__name__)
+
 class KaliExecutor:
     """
     Executor for running commands inside a Kali Linux VM via VMware Fusion's vmrun.
@@ -57,9 +59,9 @@ class KaliExecutor:
                 with open(host_tmp_file, 'r') as f:
                     output = f.read()
                 os.remove(host_tmp_file)
-                print(f"DEBUG [KaliExecutor] Output length: {len(output)}")
+                logger.debug(f"DEBUG [KaliExecutor] Output length: {len(output)}")
                 # Print a bit more to see if databases are there
-                print(f"DEBUG [KaliExecutor] Output end snippet: {output[-500:]}...")
+                logger.debug(f"DEBUG [KaliExecutor] Output end snippet: {output[-500:]}...")
             else:
                 output = "Error: Host output file not found after copy."
             
@@ -76,7 +78,7 @@ class KaliExecutor:
     def copy_to_guest(self, host_path: str, guest_path: str) -> str:
         """Copies a file from the host machine to the Kali VM."""
         # Note: guest_path should be a full path or directory
-        print(f"DEBUG [KaliExecutor] Copying file {host_path} to {guest_path}")
+        logger.debug(f"DEBUG [KaliExecutor] Copying file {host_path} to {guest_path}")
         copy_cmd = [
             self.vmrun_path,
             "-gu", self.user,
@@ -138,7 +140,7 @@ def sqlmap(url: str, args: str = "--batch --banner") -> str:
     ensure_package("sqlmap")
     executor = get_executor()
     cmd = f"sqlmap -u '{url}' {args}"
-    print(f"DEBUG [kali.sqlmap] Final command: {cmd}")
+    logger.debug(f"DEBUG [kali.sqlmap] Final command: {cmd}")
     return executor.execute(cmd)
 
 def dirsearch(url: str, args: str = "-e php,html,js --format=simple") -> str:

@@ -3,6 +3,9 @@ import subprocess
 import asyncio
 from dotenv import load_dotenv
 
+import logging
+logger = logging.getLogger(__name__)
+
 async def get_vm_ip(vm_name: str) -> str:
     """
     Dynamically find the IP address of a running VM by partial name match.
@@ -43,14 +46,14 @@ async def open_vm_vnc(vm_name: str) -> str:
     Opens a Browser-based VNC (NoVNC) session for the specified virtual machine.
     This bypasses any LLM layers and uses native macOS 'open' command for reliability.
     """
-    print(f"DEBUG: Attempting to dynamically get IP for VM: {vm_name}")
+    logger.debug(f"DEBUG: Attempting to dynamically get IP for VM: {vm_name}")
     vm_ip = await get_vm_ip(vm_name)
     
     # If the returned string starts with "Error", return it immediately
     if vm_ip.startswith("Error"):
         return vm_ip
         
-    print(f"DEBUG: Found IP {vm_ip} for VM {vm_name}")
+    logger.debug(f"DEBUG: Found IP {vm_ip} for VM {vm_name}")
     
     # 1. Prepare NoVNC URL
     # Assuming standard setup: 6080 for NoVNC websockify
@@ -82,7 +85,7 @@ async def _execute_vnc_do_command(vm_name: str, commands: list) -> str:
     try:
         # vncdotool -s <ip>:5900 <commands>
         cli_args = ["vncdo", "-s", server_address] + commands
-        print(f"DEBUG: VNC command executing -> {' '.join(cli_args)}")
+        logger.debug(f"DEBUG: VNC command executing -> {' '.join(cli_args)}")
         
         proc = await asyncio.create_subprocess_exec(
             *cli_args,
