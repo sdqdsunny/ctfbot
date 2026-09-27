@@ -6,6 +6,13 @@ import requests
 import os
 import json
 
+import logging
+logger = logging.getLogger(__name__)
+
+# 本地模型在 CPU 上推理很慢，单次请求要给足时间。代价是上游真的挂死时，
+# 也要等这么久才会失败——想更快失败就调小它（原来是写死在调用处的 1200）。
+_REQUEST_TIMEOUT_S = 2400.0
+
 class LMStudioLLM(BaseChatModel):
     """Custom LLM for LM Studio using requests to avoid SDK issues."""
     base_url: str
@@ -27,7 +34,11 @@ class LMStudioLLM(BaseChatModel):
                 continue
                 
             content = m.content or ""
-            if m.type == "user" and system_content:
+            # 注意是 "human" 不是 "user"：LangChain 的 HumanMessage.type == "human"。
+            # 这里原先写死 m.type == "user"，条件永不成立，于是系统提示被上面的
+            # continue 跳过后再没人合并——整份系统提示（含工具用法说明）从没发给过
+            # 模型。本地模型"不听话"的真正原因是这个，而不是提示词不够强硬。
+            if m.type in ("human", "user") and system_content:
                 content = f"{system_content}\n\nUSER COMMAND: {content}"
                 system_content = "" # Only do it once
                 
@@ -38,23 +49,23 @@ class LMStudioLLM(BaseChatModel):
                 formatted_msgs.append({"role": "user", "content": f"🛠️ Tool Output ({m.name}):\n{content}"})
             else:
                 formatted_msgs.append({"role": "user", "content": content})
-        
+                
         payload = {
             "model": self.model_name,
             "messages": formatted_msgs,
             "temperature": self.temperature
         }
         
-        print(f"DEBUG [LMStudio]: Sending {len(formatted_msgs)} messages to {self.model_name}")
+        logger.debug(f"DEBUG [LMStudio]: Sending {len(formatted_msgs)} messages to {self.model_name}")
         
         try:
-            resp = requests.post(f"{self.base_url}/chat/completions", json=payload, timeout=1200)
+            resp = requests.post(f"{self.base_url}/chat/completions", json=payload, timeout=_REQUEST_TIMEOUT_S)
             resp.raise_for_status()
             data = resp.json()
             msg_data = data["choices"][0]["message"]
             content = msg_data.get("content") or ""
             
-            # 处理原生 Tool Calls (如果模型输出了)
+            # 处理原生 Tool Calls (如果模型输出了标准的 JSON format)
             tool_calls = []
             if "tool_calls" in msg_data and msg_data["tool_calls"]:
                 for tc in msg_data["tool_calls"]:
@@ -64,6 +75,47 @@ class LMStudioLLM(BaseChatModel):
                         "id": tc["id"],
                         "type": "tool_call"
                     })
+            else:
+                import re
+                import uuid
+                # Pattern to catch <tool_call> blocks
+                tc_pattern = re.compile(r"<tool_call>.*?</tool_call>", re.DOTALL)
+                func_pattern = re.compile(r"<function=([^>]+)>")
+                param_pattern = re.compile(r"<parameter=([^>]+)>(.*?)</parameter>", re.DOTALL)
+                
+                for tc_block in tc_pattern.findall(content):
+                    func_match = func_pattern.search(tc_block)
+                    if func_match:
+                        func_name = func_match.group(1).strip()
+                        args = {}
+                        for p_match in param_pattern.finditer(tc_block):
+                            args[p_match.group(1).strip()] = p_match.group(2).strip()
+                            
+                        tool_calls.append({
+                            "name": func_name,
+                            "args": args,
+                            "id": f"call_{uuid.uuid4().hex[:8]}",
+                            "type": "tool_call"
+                        })
+                        
+                        # Remove the parsed tool call from the text content so it isn't just spit out
+                        content = content.replace(tc_block, "").strip()
+
+                # Pattern to catch [TOOL_REQUEST] blocks
+                tr_pattern = re.compile(r"\[TOOL_REQUEST\](.*?)\[END_TOOL_REQUEST\]", re.DOTALL)
+                for tr_block in tr_pattern.findall(content):
+                    try:
+                        tr_json = json.loads(tr_block.strip())
+                        tool_calls.append({
+                            "name": tr_json.get("name"),
+                            "args": tr_json.get("arguments", {}),
+                            "id": f"call_{uuid.uuid4().hex[:8]}",
+                            "type": "tool_call"
+                        })
+                        # Remove the parsed blocks
+                        content = content.replace(f"[TOOL_REQUEST]{tr_block}[END_TOOL_REQUEST]", "").strip()
+                    except json.JSONDecodeError:
+                        pass
             
             return ChatResult(generations=[ChatGeneration(message=AIMessage(content=content, tool_calls=tool_calls))])
         except Exception as e:
