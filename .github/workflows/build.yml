@@ -6,8 +6,34 @@ on:
       - 'v*'
   workflow_dispatch: # 允许手动从 Actions 页面点击运行
 
+env:
+  # 与 Dockerfile 里固定的版本保持一致
+  POETRY_VERSION: "2.3.2"
+
 jobs:
+  # 打 tag 是"发布"这个动作的触发器，所以必须确认 tag 与代码里声明的版本一致。
+  # 否则会构建出一个标签写着 v0.9.0、内容却还是 0.8.0 的产物——
+  # 这种产物一旦分发出去，靠文件名和 tag 都判断不出真实版本，只能靠人去翻提交。
+  version-guard:
+    name: 校验 tag 与版本号
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 仅 tag 触发时校验。手动 dispatch 跑在分支上（github.ref 是 refs/heads/...），
+      # 拿分支名当版本号比对必然失败，所以先判掉。
+      # 用环境变量而不是内联 ${{ }} 传参：tag 名是外部输入，
+      # 内联进 run 脚本等于把任意字符串拼进 shell 命令。
+      - name: tag 必须与 pyproject.toml 的版本一致
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python scripts/check_version.py --tag "${GITHUB_REF_NAME}"
+
   build:
+    needs: version-guard
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -32,7 +58,9 @@ jobs:
       - name: Install Poetry
         run: |
           python -m pip install --upgrade pip
-          pip install poetry
+          # 与 Dockerfile 固定同一版本：否则 CI 用新版 poetry 装出来的依赖
+          # 可能与镜像里那份不一致，出现"CI 绿了但容器起不来"
+          pip install "poetry==${POETRY_VERSION}"
 
       - name: Install Dependencies
         run: |

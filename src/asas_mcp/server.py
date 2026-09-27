@@ -1,4 +1,5 @@
 from mcp.server.fastmcp import FastMCP, Image
+from . import __version__
 from .tools import recon, crypto, misc, reverse, platform, reverse_ghidra, web, kali, sandbox, vms_vnc
 import base64
 import os
@@ -421,7 +422,9 @@ def create_app():
     
     @app.get("/")
     def root():
-        return {"message": "ASAS Core MCP Server", "version": "0.1.0"}
+        # 原先硬编码 "0.1.0"，与发布版本无关；改为读包内版本，
+        # 唯一权威见仓库根 pyproject.toml。
+        return {"message": "ASAS Core MCP Server", "version": __version__}
     
     @app.get("/tools")
     def list_tools():
